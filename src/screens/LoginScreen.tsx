@@ -171,7 +171,7 @@ export default function LoginScreen() {
                     ]}
                 >
                     <Image
-                        source={require('../../assets/bloomi-logo-full.png')}
+                        source={require('../../assets/bloomi_full_logo.png')}
                         style={styles.logo}
                         resizeMode="contain"
                     />
