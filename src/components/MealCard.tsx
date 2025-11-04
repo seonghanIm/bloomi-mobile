@@ -53,7 +53,7 @@ export default function MealCard({ meal }: MealCardProps) {
 
 const styles = StyleSheet.create({
   mealCard: {
-    backgroundColor: '#F9F9F9',
+    backgroundColor: '#F5F5F5',
     borderRadius: 16,
     padding: 20,
     marginBottom: 12,

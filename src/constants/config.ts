@@ -1,19 +1,5 @@
-import Constants from 'expo-constants';
-
-const ENV = {
-  dev: {
-    apiUrl: 'http://localhost:8080',
-  },
-  prod: {
-    apiUrl: 'https://api.bloomi.app', // 배포시 변경
-  },
+const config = {
+  apiUrl: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080',
 };
 
-const getEnvVars = () => {
-  if (__DEV__) {
-    return ENV.dev;
-  }
-  return ENV.prod;
-};
-
-export default getEnvVars();
+export default config;

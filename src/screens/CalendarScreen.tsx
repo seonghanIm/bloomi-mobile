@@ -47,18 +47,20 @@ export default function CalendarScreen({ onClose, monthlyStats }: CalendarScreen
     const marked: any = {};
 
     // 월별 통계에서 마킹 생성
-    Object.entries(monthlyStats).forEach(([date, count]) => {
-      marked[date] = {
-        marked: true,
-        dotColor: '#4CAF50',
-        customStyles: {
-          text: {
-            color: count > 0 ? '#4CAF50' : '#333',
-            fontWeight: count > 0 ? 'bold' : 'normal',
+    if (monthlyStats) {
+      Object.entries(monthlyStats).forEach(([date, count]) => {
+        marked[date] = {
+          marked: true,
+          dotColor: '#4CAF50',
+          customStyles: {
+            text: {
+              color: count > 0 ? '#4CAF50' : '#333',
+              fontWeight: count > 0 ? 'bold' : 'normal',
+            },
           },
-        },
-      };
-    });
+        };
+      });
+    }
 
     // 선택된 날짜 하이라이트
     if (selectedDate) {
@@ -72,7 +74,7 @@ export default function CalendarScreen({ onClose, monthlyStats }: CalendarScreen
     return marked;
   }, [monthlyStats, selectedDate]);
 
-  const totalCalories = meals.reduce((sum, meal) => sum + meal.calories, 0);
+  const totalCalories = meals?.reduce((sum, meal) => sum + meal.calories, 0) || 0;
 
   return (
     <View style={styles.container}>

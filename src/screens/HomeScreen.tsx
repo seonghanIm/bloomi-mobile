@@ -18,6 +18,7 @@ import { getTodayMeals, analyzeMeal, getMonthlyStatistics } from '../services/me
 import { MealAnalysis } from '../types/meal';
 import CalendarScreen from './CalendarScreen';
 import MealCard from '../components/MealCard';
+import SideDrawer from '../components/SideDrawer';
 
 export default function HomeScreen() {
   const { user, logout } = useAuth();
@@ -30,6 +31,7 @@ export default function HomeScreen() {
   const [foodWeight, setFoodWeight] = useState('');
   const [showCalendar, setShowCalendar] = useState(false);
   const [monthlyStats, setMonthlyStats] = useState<Record<string, number>>({});
+  const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
     loadTodayMeals();
@@ -189,7 +191,7 @@ export default function HomeScreen() {
   };
 
   // 오늘 총 칼로리 계산
-  const totalCalories = meals.reduce((sum, meal) => sum + meal.calories, 0);
+  const totalCalories = meals?.reduce((sum, meal) => sum + meal.calories, 0) || 0;
 
   if (isLoading) {
     return (
@@ -215,9 +217,14 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>안녕하세요,</Text>
           <Text style={styles.name}>{user?.name}님! 👋</Text>
         </View>
-        <TouchableOpacity onPress={() => setShowCalendar(true)} style={styles.calendarButton}>
-          <Ionicons name="calendar-outline" size={28} color="#333" />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity onPress={() => setShowCalendar(true)} style={styles.iconButton}>
+            <Ionicons name="calendar-outline" size={28} color="#333" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.iconButton}>
+            <Ionicons name="menu-outline" size={28} color="#333" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -244,7 +251,7 @@ export default function HomeScreen() {
         {/* 오늘 식단 목록 */}
         <View style={styles.mealsSection}>
           <Text style={styles.sectionTitle}>오늘의 식단</Text>
-          {meals.length === 0 ? (
+          {!meals || meals.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>아직 기록이 없어요</Text>
               <Text style={styles.emptySubtext}>
@@ -261,12 +268,12 @@ export default function HomeScreen() {
         {/* 통계 */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{meals.length}</Text>
+            <Text style={styles.statValue}>{meals?.length || 0}</Text>
             <Text style={styles.statLabel}>오늘 기록</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>
-              {meals.length > 0
+              {meals && meals.length > 0
                 ? Math.round(
                     meals.reduce((sum, m) => sum + m.confidence, 0) /
                       meals.length *
@@ -279,12 +286,6 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScrollView>
-
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-          <Text style={styles.logoutButtonText}>로그아웃</Text>
-        </TouchableOpacity>
-      </View>
 
       {/* 음식 정보 입력 모달 */}
       <Modal
@@ -354,6 +355,12 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* 사이드 메뉴 드로어 */}
+      <SideDrawer
+        visible={showMenu}
+        onClose={() => setShowMenu(false)}
+      />
     </View>
   );
 }
@@ -377,7 +384,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     paddingHorizontal: 24,
   },
-  calendarButton: {
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  iconButton: {
     padding: 8,
   },
   greeting: {
@@ -395,7 +406,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   calorieCard: {
-    backgroundColor: '#30C58F',
+    backgroundColor: '#43cb9b',
     borderRadius: 20,
     padding: 32,
     alignItems: 'center',
@@ -476,22 +487,6 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 13,
     color: '#666',
-  },
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-    paddingTop: 16,
-  },
-  logoutButton: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  logoutButtonText: {
-    color: '#666',
-    fontSize: 16,
   },
   modalOverlay: {
     flex: 1,

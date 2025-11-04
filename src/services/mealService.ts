@@ -56,40 +56,58 @@ export const analyzeMeal = async (request: AnalyzeMealRequest): Promise<MealAnal
  * 오늘 식단 조회
  */
 export const getTodayMeals = async (): Promise<MealAnalysis[]> => {
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-  const response = await api.get<{ code: string; message: string; data: MealAnalysis[] }>(
-    `/api/v1/meal/${today}`
-  );
-  return response.data.data;
+  try {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const response = await api.get<{ code: string; message: string; data: MealAnalysis[] }>(
+      `/api/v1/meal/${today}`
+    );
+    return response.data.data || [];
+  } catch (error) {
+    console.error('Failed to fetch today meals:', error);
+    // 에러 발생 시 빈 배열 반환
+    return [];
+  }
 };
 
 /**
  * 특정 날짜 식단 조회
  */
 export const getMealsByDate = async (date: string): Promise<MealAnalysis[]> => {
-  const response = await api.get<{ code: string; message: string; data: MealAnalysis[] }>(
-    `/api/v1/meal/${date}`
-  );
-  return response.data.data;
+  try {
+    const response = await api.get<{ code: string; message: string; data: MealAnalysis[] }>(
+      `/api/v1/meal/${date}`
+    );
+    return response.data.data || [];
+  } catch (error) {
+    console.error('Failed to fetch meals by date:', error);
+    // 에러 발생 시 빈 배열 반환
+    return [];
+  }
 };
 
 /**
  * 월별 통계 조회
  */
 export const getMonthlyStatistics = async (yearMonth: string): Promise<Record<string, number>> => {
-  const response = await api.get<{
-    code: string;
-    message: string;
-    data: {
-      yearMonth: string;
-      dailyCounts: Record<string, number>;
-      totalCount: number;
-      traceId: string;
-    };
-  }>(`/api/v1/meal/monthly/${yearMonth}`);
+  try {
+    const response = await api.get<{
+      code: string;
+      message: string;
+      data: {
+        yearMonth: string;
+        dailyCounts: Record<string, number>;
+        totalCount: number;
+        traceId: string;
+      };
+    }>(`/api/v1/meal/monthly/${yearMonth}`);
 
-  // dailyCounts를 그대로 반환
-  return response.data.data.dailyCounts;
+    // dailyCounts를 그대로 반환 (없으면 빈 객체)
+    return response.data.data?.dailyCounts || {};
+  } catch (error) {
+    console.error('Failed to fetch monthly statistics:', error);
+    // 에러 발생 시 빈 객체 반환
+    return {};
+  }
 };
 
 export default api;

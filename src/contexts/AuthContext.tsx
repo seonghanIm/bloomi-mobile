@@ -26,15 +26,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const loadStoredUser = async () => {
     try {
+      console.log('🔍 Checking stored user...');
       const storedUser = await storage.getUser();
       const storedToken = await storage.getAccessToken();
+
+      console.log('📦 Stored user:', storedUser ? storedUser.name : 'None');
+      console.log('🔑 Stored token:', storedToken ? storedToken.substring(0, 20) + '...' : 'None');
 
       if (storedUser && storedToken) {
         setUser(storedUser);
         setAuthToken(storedToken); // axios에 토큰 설정
+        console.log('✅ Auto-login successful');
+      } else {
+        console.log('ℹ️ No stored credentials found');
       }
     } catch (error) {
-      console.error('Failed to load stored user:', error);
+      console.error('❌ Failed to load stored user:', error);
     } finally {
       setIsLoading(false);
     }
@@ -53,15 +60,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
+    console.log('🚪 Logout started...');
+
+    // 먼저 로컬 저장소와 상태를 지움
+    await storage.clearAll();
+    console.log('✅ Storage cleared');
+
+    setAuthToken(null); // axios 토큰 제거
+    console.log('✅ Auth token removed from axios');
+
+    setUser(null);
+    console.log('✅ User state cleared');
+
+    // WebBrowser 쿠키 및 세션 초기화
+    try {
+      const WebBrowser = require('expo-web-browser');
+      await WebBrowser.maybeCompleteAuthSession();
+      console.log('✅ WebBrowser session cleared');
+    } catch (error) {
+      console.error('❌ Failed to clear WebBrowser session:', error);
+    }
+
+    // 그 다음 백엔드에 로그아웃 요청 (실패해도 로컬은 이미 지워짐)
     try {
       await authApi.logout();
+      console.log('✅ Server logout successful');
     } catch (error) {
-      console.error('Failed to logout from server:', error);
-    } finally {
-      await storage.clearAll();
-      setAuthToken(null); // axios 토큰 제거
-      setUser(null);
+      console.error('❌ Failed to logout from server:', error);
+      // 백엔드 호출 실패해도 이미 로컬은 정리됨
     }
+
+    console.log('🚪 Logout completed');
   };
 
   const deleteAccount = async () => {
