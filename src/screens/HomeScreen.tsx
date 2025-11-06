@@ -10,6 +10,8 @@ import {
   Image,
   Modal,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -294,66 +296,81 @@ export default function HomeScreen() {
         transparent={true}
         onRequestClose={handleModalCancel}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>음식 정보 입력 (선택)</Text>
-            <Text style={styles.modalSubtitle}>
-              더 정확한 분석을 위해 정보를 입력해주세요
-            </Text>
-
-            {selectedImageUri && (
-              <Image
-                source={{ uri: selectedImageUri }}
-                style={styles.previewImage}
-              />
-            )}
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>음식 이름</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="예: 닭가슴살 샐러드"
-                value={foodName}
-                onChangeText={setFoodName}
-                placeholderTextColor="#999"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>중량 (g)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="예: 350"
-                value={foodWeight}
-                onChangeText={setFoodWeight}
-                keyboardType="numeric"
-                placeholderTextColor="#999"
-              />
-            </View>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.skipButton]}
-                onPress={() => handleAnalyzeSubmit()}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={handleModalCancel}
+            style={styles.modalOverlay}
+          >
+            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+              <ScrollView
+                contentContainerStyle={styles.modalContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
               >
-                <Text style={styles.skipButtonText}>건너뛰기</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.submitButton]}
-                onPress={handleAnalyzeSubmit}
-              >
-                <Text style={styles.submitButtonText}>분석하기</Text>
-              </TouchableOpacity>
-            </View>
+                <Text style={styles.modalTitle}>음식 정보 입력 (선택)</Text>
+                <Text style={styles.modalSubtitle}>
+                  더 정확한 분석을 위해 정보를 입력해주세요
+                </Text>
 
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={handleModalCancel}
-            >
-              <Text style={styles.cancelButtonText}>취소</Text>
+                {selectedImageUri && (
+                  <Image
+                    source={{ uri: selectedImageUri }}
+                    style={styles.previewImage}
+                  />
+                )}
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>음식 이름</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="예: 닭가슴살 샐러드"
+                    value={foodName}
+                    onChangeText={setFoodName}
+                    placeholderTextColor="#999"
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>중량 (g)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="예: 350"
+                    value={foodWeight}
+                    onChangeText={setFoodWeight}
+                    keyboardType="numeric"
+                    placeholderTextColor="#999"
+                  />
+                </View>
+
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.skipButton]}
+                    onPress={() => handleAnalyzeSubmit()}
+                  >
+                    <Text style={styles.skipButtonText}>건너뛰기</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.submitButton]}
+                    onPress={handleAnalyzeSubmit}
+                  >
+                    <Text style={styles.submitButtonText}>분석하기</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={handleModalCancel}
+                >
+                  <Text style={styles.cancelButtonText}>취소</Text>
+                </TouchableOpacity>
+              </ScrollView>
             </TouchableOpacity>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* 사이드 메뉴 드로어 */}
