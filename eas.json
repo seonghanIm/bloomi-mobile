@@ -40,8 +40,8 @@
     "production": {
       "ios": {
         "appleId": "tjdgksdl1120@gmail.com",
-        "ascAppId": "placeholder",
-        "appleTeamId": "placeholder"
+        "ascAppId": "6754952109",
+        "appleTeamId": "T6D75VWJ7N"
       },
       "android": {
         "serviceAccountKeyPath": "./pc-api-key.json",
@@ -49,6 +49,11 @@
       }
     },
     "preview": {
+      "ios": {
+        "appleId": "tjdgksdl1120@gmail.com",
+        "ascAppId": "6754952109",
+        "appleTeamId": "T6D75VWJ7N"
+      },
       "android": {
         "serviceAccountKeyPath": "./pc-api-key.json",
         "track": "internal"
