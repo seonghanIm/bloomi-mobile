@@ -51,6 +51,19 @@ export const analyzeMeal = async (request: AnalyzeMealRequest): Promise<MealAnal
     }
   );
 
+  console.log('📡 Full API Response:', JSON.stringify(response.data, null, 2));
+
+  // 응답 데이터 검증
+  if (!response.data) {
+    throw new Error('서버 응답이 비어있습니다.');
+  }
+
+  // data 필드가 없을 경우 처리
+  if (!response.data.data) {
+    console.error('❌ Invalid response structure:', response.data);
+    throw new Error('서버 응답 형식이 올바르지 않습니다.');
+  }
+
   return response.data.data;
 };
 

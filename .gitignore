@@ -44,3 +44,10 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# EAS / Deployment (배포 관련 민감 정보)
+pc-api-key.json
+google-services.json
+GoogleService-Info.plist
+*.cer
+*.certSigningRequest
