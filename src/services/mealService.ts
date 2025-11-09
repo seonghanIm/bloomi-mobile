@@ -1,9 +1,11 @@
 import axios from 'axios';
 import config from '../constants/config';
 import { MealAnalysis, AnalyzeMealRequest } from '../types/meal';
+import { formatLocalDate } from '../utils/dateUtils';
 
 const api = axios.create({
   baseURL: config.apiUrl,
+  timeout: 10000, // 10초 timeout
 });
 
 // Axios 인터셉터: 요청에 JWT 토큰 자동 추가
@@ -57,13 +59,23 @@ export const analyzeMeal = async (request: AnalyzeMealRequest): Promise<MealAnal
  */
 export const getTodayMeals = async (): Promise<MealAnalysis[]> => {
   try {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const today = formatLocalDate(); // 로컬 시간대 기준 YYYY-MM-DD
+    console.log('📡 API Request: GET /api/v1/meal/' + today);
+    console.log('🌐 API URL:', config.apiUrl);
+
     const response = await api.get<{ code: string; message: string; data: MealAnalysis[] }>(
       `/api/v1/meal/${today}`
     );
+
+    console.log('✅ API Response received:', response.status);
     return response.data.data || [];
-  } catch (error) {
-    console.error('Failed to fetch today meals:', error);
+  } catch (error: any) {
+    console.error('❌ Failed to fetch today meals:', error.message);
+    if (error.code === 'ECONNABORTED') {
+      console.error('⏱️ Request timeout');
+    } else if (error.code === 'ERR_NETWORK') {
+      console.error('🌐 Network error - check if server is running');
+    }
     // 에러 발생 시 빈 배열 반환
     return [];
   }
@@ -90,6 +102,8 @@ export const getMealsByDate = async (date: string): Promise<MealAnalysis[]> => {
  */
 export const getMonthlyStatistics = async (yearMonth: string): Promise<Record<string, number>> => {
   try {
+    console.log('📡 API Request: GET /api/v1/meal/monthly/' + yearMonth);
+
     const response = await api.get<{
       code: string;
       message: string;
@@ -101,10 +115,11 @@ export const getMonthlyStatistics = async (yearMonth: string): Promise<Record<st
       };
     }>(`/api/v1/meal/monthly/${yearMonth}`);
 
+    console.log('✅ API Response received');
     // dailyCounts를 그대로 반환 (없으면 빈 객체)
     return response.data.data?.dailyCounts || {};
-  } catch (error) {
-    console.error('Failed to fetch monthly statistics:', error);
+  } catch (error: any) {
+    console.error('❌ Failed to fetch monthly statistics:', error.message);
     // 에러 발생 시 빈 객체 반환
     return {};
   }

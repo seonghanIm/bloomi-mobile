@@ -15,19 +15,31 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bloomi.app"
+      "bundleIdentifier": "com.seonghanim.bloomi",
+      "buildNumber": "2",
+      "infoPlist": {
+        "NSCameraUsageDescription": "BLOOMI가 음식 사진을 촬영하기 위해 카메라 접근이 필요합니다.",
+        "NSPhotoLibraryUsageDescription": "BLOOMI가 음식 사진을 선택하기 위해 사진 접근이 필요합니다.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.bloomi.app",
+      "package": "com.seonghanim.bloomi",
+      "versionCode": 2,
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "575a35ff-2a83-403e-ab68-6dda3962662d"
+      }
     }
   }
 }

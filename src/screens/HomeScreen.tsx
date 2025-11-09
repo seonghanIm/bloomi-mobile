@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,12 +10,15 @@ import {
   Image,
   Modal,
   TextInput,
+  RefreshControl,
+  AppState,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { getTodayMeals, analyzeMeal, getMonthlyStatistics } from '../services/mealService';
 import { MealAnalysis } from '../types/meal';
+import { getCurrentYearMonth } from '../utils/dateUtils';
 import CalendarScreen from './CalendarScreen';
 import MealCard from '../components/MealCard';
 import SideDrawer from '../components/SideDrawer';
@@ -32,35 +35,82 @@ export default function HomeScreen() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [monthlyStats, setMonthlyStats] = useState<Record<string, number>>({});
   const [showMenu, setShowMenu] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const appState = useRef(AppState.currentState);
 
+  // 초기 로드
   useEffect(() => {
-    loadTodayMeals();
-    loadMonthlyStats();
+    const loadInitialData = async () => {
+      console.log('🚀 HomeScreen: Initial data load started');
+      try {
+        await Promise.all([loadTodayMeals(), loadMonthlyStats()]);
+        console.log('✅ HomeScreen: Initial data load completed');
+      } catch (error) {
+        console.error('❌ HomeScreen: Initial data load failed:', error);
+        setIsLoading(false); // 에러 발생 시에도 로딩 해제
+      }
+    };
+
+    loadInitialData();
+  }, []);
+
+  // 앱이 다시 활성화될 때 새로고침
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        console.log('🔄 App has come to the foreground, refreshing data...');
+        loadTodayMeals();
+        loadMonthlyStats();
+      }
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   const loadMonthlyStats = async () => {
     try {
-      const now = new Date();
-      const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const yearMonth = getCurrentYearMonth();
+      console.log('📊 Loading monthly stats for:', yearMonth);
       const stats = await getMonthlyStatistics(yearMonth);
       setMonthlyStats(stats);
+      console.log('✅ Monthly stats loaded');
     } catch (error) {
-      console.error('Failed to load monthly stats:', error);
+      console.error('❌ Failed to load monthly stats:', error);
     }
   };
 
   const loadTodayMeals = async () => {
     try {
-      setIsLoading(true);
+      console.log('🍽️ Loading today meals...');
       const todayMeals = await getTodayMeals();
       setMeals(todayMeals);
+      console.log('✅ Today meals loaded:', todayMeals.length);
     } catch (error) {
-      console.error('Failed to load today meals:', error);
-      Alert.alert('오류', '식단 정보를 불러올 수 없습니다.');
+      console.error('❌ Failed to load today meals:', error);
+      // 에러가 발생해도 빈 배열로 설정
+      setMeals([]);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Pull-to-refresh 핸들러
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([loadTodayMeals(), loadMonthlyStats()]);
+    } catch (error) {
+      console.error('Failed to refresh data:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   const handleAddMeal = async () => {
     // 권한 요청
@@ -204,7 +254,12 @@ export default function HomeScreen() {
   if (showCalendar) {
     return (
       <CalendarScreen
-        onClose={() => setShowCalendar(false)}
+        onClose={() => {
+          setShowCalendar(false);
+          // 캘린더에서 돌아올 때 데이터 새로고침
+          loadTodayMeals();
+          loadMonthlyStats();
+        }}
         monthlyStats={monthlyStats}
       />
     );
@@ -227,7 +282,18 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#30C58F']}
+            tintColor="#30C58F"
+          />
+        }
+      >
         {/* 오늘 총 칼로리 */}
         <View style={styles.calorieCard}>
           <Text style={styles.calorieLabel}>오늘 섭취한 칼로리</Text>
@@ -259,7 +325,7 @@ export default function HomeScreen() {
               </Text>
             </View>
           ) : (
-            meals.map((meal, index) => (
+            [...meals].reverse().map((meal, index) => (
               <MealCard key={index} meal={meal} />
             ))
           )}
