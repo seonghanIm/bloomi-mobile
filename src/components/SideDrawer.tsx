@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Animated,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -17,7 +19,27 @@ interface SideDrawerProps {
 }
 
 export default function SideDrawer({ visible, onClose }: SideDrawerProps) {
+  const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
+  const slideAnim = useRef(new Animated.Value(300)).current; // 초기 위치: 오른쪽 밖
+
+  useEffect(() => {
+    if (visible) {
+      // 열릴 때: 오른쪽에서 슬라이드 인
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      // 닫힐 때: 오른쪽으로 슬라이드 아웃
+      Animated.timing(slideAnim, {
+        toValue: 300,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible]);
 
   const handleLogout = async () => {
     onClose();
@@ -31,7 +53,7 @@ export default function SideDrawer({ visible, onClose }: SideDrawerProps) {
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       onRequestClose={onClose}
     >
@@ -41,9 +63,16 @@ export default function SideDrawer({ visible, onClose }: SideDrawerProps) {
           activeOpacity={1}
           onPress={onClose}
         />
-        <View style={styles.drawerContent}>
+        <Animated.View
+          style={[
+            styles.drawerContent,
+            {
+              transform: [{ translateX: slideAnim }],
+            },
+          ]}
+        >
 
-          <View style={styles.drawerHeader}>
+          <View style={[styles.drawerHeader, { paddingTop: insets.top + 24 }]}>
             <View style={styles.userInfo}>
               <Image
                 source={{ uri: user?.picture }}
@@ -73,7 +102,7 @@ export default function SideDrawer({ visible, onClose }: SideDrawerProps) {
             </TouchableOpacity>
 
           </ScrollView>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -104,8 +133,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    padding: 24,
-    paddingTop: 60,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
     backgroundColor: '#F9F9F9',
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',

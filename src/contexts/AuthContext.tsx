@@ -3,6 +3,7 @@ import { storage } from '../utils/storage';
 import { authApi } from '../api/authApi';
 import { User } from '../types/api';
 import { setAuthToken } from '../services/mealService';
+import { setUnauthorizedHandler } from '../api/client';
 
 interface AuthContextType {
   user: User | null;
@@ -21,7 +22,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // 앱 시작 시 저장된 사용자 정보 로드
   useEffect(() => {
-    loadStoredUser();
+    void loadStoredUser();
+
+    // 401 에러 발생 시 자동 로그아웃 핸들러 등록
+    setUnauthorizedHandler(() => {
+      console.log('🔒 Unauthorized handler triggered - logging out');
+      void logout();
+    });
   }, []);
 
   const loadStoredUser = async () => {

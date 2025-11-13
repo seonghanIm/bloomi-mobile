@@ -12,7 +12,12 @@ import {
   TextInput,
   RefreshControl,
   AppState,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -24,6 +29,7 @@ import MealCard from '../components/MealCard';
 import SideDrawer from '../components/SideDrawer';
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const [meals, setMeals] = useState<MealAnalysis[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -267,7 +273,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <View>
           <Text style={styles.greeting}>안녕하세요,</Text>
           <Text style={styles.name}>{user?.name}님! 👋</Text>
@@ -360,66 +366,78 @@ export default function HomeScreen() {
         transparent={true}
         onRequestClose={handleModalCancel}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>음식 정보 입력 (선택)</Text>
-            <Text style={styles.modalSubtitle}>
-              더 정확한 분석을 위해 정보를 입력해주세요
-            </Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback>
+                <View style={styles.modalContent}>
+                  <Text style={styles.modalTitle}>음식 정보 입력 (선택)</Text>
+                  <Text style={styles.modalSubtitle}>
+                    더 정확한 분석을 위해 정보를 입력해주세요
+                  </Text>
 
-            {selectedImageUri && (
-              <Image
-                source={{ uri: selectedImageUri }}
-                style={styles.previewImage}
-              />
-            )}
+                  {selectedImageUri && (
+                    <Image
+                      source={{ uri: selectedImageUri }}
+                      style={styles.previewImage}
+                    />
+                  )}
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>음식 이름</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="예: 닭가슴살 샐러드"
-                value={foodName}
-                onChangeText={setFoodName}
-                placeholderTextColor="#999"
-              />
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>음식 이름</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="예: 닭가슴살 샐러드"
+                      value={foodName}
+                      onChangeText={setFoodName}
+                      placeholderTextColor="#999"
+                      returnKeyType="next"
+                    />
+                  </View>
+
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>중량 (g)</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="예: 350"
+                      value={foodWeight}
+                      onChangeText={setFoodWeight}
+                      keyboardType="numeric"
+                      placeholderTextColor="#999"
+                      returnKeyType="done"
+                      onSubmitEditing={Keyboard.dismiss}
+                    />
+                  </View>
+
+                  <View style={styles.modalButtons}>
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.skipButton]}
+                      onPress={() => handleAnalyzeSubmit()}
+                    >
+                      <Text style={styles.skipButtonText}>건너뛰기</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.submitButton]}
+                      onPress={handleAnalyzeSubmit}
+                    >
+                      <Text style={styles.submitButtonText}>분석하기</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={handleModalCancel}
+                  >
+                    <Text style={styles.cancelButtonText}>취소</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableWithoutFeedback>
             </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>중량 (g)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="예: 350"
-                value={foodWeight}
-                onChangeText={setFoodWeight}
-                keyboardType="numeric"
-                placeholderTextColor="#999"
-              />
-            </View>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.skipButton]}
-                onPress={() => handleAnalyzeSubmit()}
-              >
-                <Text style={styles.skipButtonText}>건너뛰기</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.submitButton]}
-                onPress={handleAnalyzeSubmit}
-              >
-                <Text style={styles.submitButtonText}>분석하기</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={handleModalCancel}
-            >
-              <Text style={styles.cancelButtonText}>취소</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* 사이드 메뉴 드로어 */}
@@ -446,7 +464,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 60,
     marginBottom: 24,
     paddingHorizontal: 24,
   },

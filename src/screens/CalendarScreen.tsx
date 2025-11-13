@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  PanResponder,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Calendar, DateData } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
 import { getMealsByDate } from '../services/mealService';
@@ -20,9 +22,27 @@ interface CalendarScreenProps {
 }
 
 export default function CalendarScreen({ onClose, monthlyStats }: CalendarScreenProps) {
+  const insets = useSafeAreaInsets();
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [meals, setMeals] = useState<MealAnalysis[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // 뒤로가기 스와이프 제스처 (PanResponder 사용)
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // 왼쪽에서 오른쪽으로 스와이프 감지 (dx > 50)
+        return Math.abs(gestureState.dx) > 50 && gestureState.dx > 0;
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        // 충분히 빠르고 길게 스와이프하면 닫기
+        if (gestureState.dx > 100 && Math.abs(gestureState.vx) > 0.5) {
+          onClose();
+        }
+      },
+    })
+  ).current;
 
   const handleDayPress = async (day: DateData) => {
     setSelectedDate(day.dateString);
@@ -77,33 +97,34 @@ export default function CalendarScreen({ onClose, monthlyStats }: CalendarScreen
   const totalCalories = meals?.reduce((sum, meal) => sum + meal.calories, 0) || 0;
 
   return (
-    <View style={styles.container}>
-      {/* 헤더 */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Ionicons name="arrow-back" size={28} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>식단 캘린더</Text>
-      </View>
+      <View style={styles.container} {...panResponder.panHandlers}>
+        {/* 헤더 */}
+        <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Ionicons name="arrow-back" size={28} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>식단 캘린더</Text>
+        </View>
 
-      {/* 달력 */}
-      <Calendar
-        onDayPress={handleDayPress}
-        markedDates={markedDates}
-        theme={{
-          todayTextColor: '#4CAF50',
-          selectedDayBackgroundColor: '#4CAF50',
-          selectedDayTextColor: '#fff',
-          arrowColor: '#4CAF50',
-          monthTextColor: '#333',
-          textMonthFontWeight: 'bold',
-          textDayFontSize: 16,
-          textMonthFontSize: 18,
-          dotColor: '#4CAF50',
-          selectedDotColor: '#fff',
-        }}
-        style={styles.calendar}
-      />
+        {/* 달력 */}
+        <Calendar
+          onDayPress={handleDayPress}
+          markedDates={markedDates}
+          enableSwipeMonths={true}
+          theme={{
+            todayTextColor: '#4CAF50',
+            selectedDayBackgroundColor: '#4CAF50',
+            selectedDayTextColor: '#fff',
+            arrowColor: '#4CAF50',
+            monthTextColor: '#333',
+            textMonthFontWeight: 'bold',
+            textDayFontSize: 16,
+            textMonthFontSize: 18,
+            dotColor: '#4CAF50',
+            selectedDotColor: '#fff',
+          }}
+          style={styles.calendar}
+        />
 
       {/* 선택된 날짜의 식단 목록 */}
       <ScrollView style={styles.mealsContainer} showsVerticalScrollIndicator={false}>
@@ -146,7 +167,7 @@ export default function CalendarScreen({ onClose, monthlyStats }: CalendarScreen
           </View>
         )}
       </ScrollView>
-    </View>
+      </View>
   );
 }
 
@@ -160,7 +181,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 60,
     paddingBottom: 20,
   },
   headerTitle: {

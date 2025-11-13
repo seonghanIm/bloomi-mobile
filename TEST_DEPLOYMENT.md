@@ -4,6 +4,53 @@
 
 ---
 
+## ⚡ **빠른 재배포 (이미 설정 완료된 경우)**
+
+이미 한 번 배포했다면, 다음 배포는 매우 간단합니다:
+
+### 1. 버전 업데이트
+```bash
+# app.json에서 버전 수정
+# iOS: buildNumber 올리기
+# Android: versionCode 올리기
+```
+
+### 2. iOS TestFlight 배포
+```bash
+cd /Users/athometrip/Documents/workspace/bloomi-mobile
+
+# 빌드 및 자동 제출
+eas build --platform ios --profile preview --non-interactive
+eas submit --platform ios --profile preview --non-interactive --latest
+```
+
+**소요 시간**: 약 15-20분
+**결과**: TestFlight에 자동으로 업로드, 5-10분 후 테스터들에게 알림
+
+### 3. Android Internal Testing 배포
+```bash
+# 빌드 및 자동 제출
+eas build --platform android --profile preview --non-interactive
+eas submit --platform android --profile preview --non-interactive --latest
+```
+
+**소요 시간**: 약 15-20분
+**결과**: Internal Testing에 자동으로 업로드, 즉시 테스터들에게 알림
+
+### 4. 동시 배포 (권장)
+```bash
+# iOS와 Android를 동시에 빌드
+eas build --platform all --profile preview --non-interactive
+
+# 빌드 완료 후 각각 제출
+eas submit --platform ios --profile preview --non-interactive --latest
+eas submit --platform android --profile preview --non-interactive --latest
+```
+
+**총 소요 시간**: 약 20-25분 (병렬 처리)
+
+---
+
 ## 📋 **빠른 체크리스트**
 
 ### 사전 준비 (1-2일)
