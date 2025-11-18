@@ -1,21 +1,10 @@
-import axios from 'axios';
+import apiClient from '../api/client';
 import config from '../constants/config';
 import { MealAnalysis, AnalyzeMealRequest } from '../types/meal';
 import { formatLocalDate } from '../utils/dateUtils';
 
-const api = axios.create({
-  baseURL: config.apiUrl,
-  timeout: 10000, // 10초 timeout
-});
-
-// Axios 인터셉터: 요청에 JWT 토큰 자동 추가
-export const setAuthToken = (token: string | null) => {
-  if (token) {
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  } else {
-    delete api.defaults.headers.common['Authorization'];
-  }
-};
+// client.ts의 apiClient를 사용하여 401 에러 처리를 통합
+// (setAuthToken은 더 이상 필요 없음 - client.ts의 interceptor가 자동으로 토큰 추가)
 
 /**
  * 식단 이미지 분석
@@ -41,7 +30,7 @@ export const analyzeMeal = async (request: AnalyzeMealRequest): Promise<MealAnal
     formData.append('notes', request.notes);
   }
 
-  const response = await api.post<{ code: string; message: string; data: MealAnalysis }>(
+  const response = await apiClient.post<{ code: string; message: string; data: MealAnalysis }>(
     '/api/v1/meal/analyze',
     formData,
     {
@@ -76,7 +65,7 @@ export const getTodayMeals = async (): Promise<MealAnalysis[]> => {
     console.log('📡 API Request: GET /api/v1/meal/' + today);
     console.log('🌐 API URL:', config.apiUrl);
 
-    const response = await api.get<{ code: string; message: string; data: MealAnalysis[] }>(
+    const response = await apiClient.get<{ code: string; message: string; data: MealAnalysis[] }>(
       `/api/v1/meal/${today}`
     );
 
@@ -99,7 +88,7 @@ export const getTodayMeals = async (): Promise<MealAnalysis[]> => {
  */
 export const getMealsByDate = async (date: string): Promise<MealAnalysis[]> => {
   try {
-    const response = await api.get<{ code: string; message: string; data: MealAnalysis[] }>(
+    const response = await apiClient.get<{ code: string; message: string; data: MealAnalysis[] }>(
       `/api/v1/meal/${date}`
     );
     return response.data.data || [];
@@ -117,7 +106,7 @@ export const getMonthlyStatistics = async (yearMonth: string): Promise<Record<st
   try {
     console.log('📡 API Request: GET /api/v1/meal/monthly/' + yearMonth);
 
-    const response = await api.get<{
+    const response = await apiClient.get<{
       code: string;
       message: string;
       data: {
@@ -138,4 +127,4 @@ export const getMonthlyStatistics = async (yearMonth: string): Promise<Record<st
   }
 };
 
-export default api;
+export default apiClient;

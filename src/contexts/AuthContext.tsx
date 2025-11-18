@@ -1,8 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { storage } from '../utils/storage';
 import { authApi } from '../api/authApi';
 import { User } from '../types/api';
-import { setAuthToken } from '../services/mealService';
 import { setUnauthorizedHandler } from '../api/client';
 
 interface AuthContextType {
@@ -19,6 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const appState = useRef(AppState.currentState);
 
   // 앱 시작 시 저장된 사용자 정보 로드
   useEffect(() => {
@@ -31,6 +32,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
   }, []);
 
+  // 앱 포그라운드 복귀 시 토큰 유효성 검사
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => {
+      subscription.remove();
+    };
+  }, [user]);
+
+  const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+    // 백그라운드에서 포그라운드로 복귀 시
+    if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+      console.log('📱 App became active - validating token');
+
+      // 로그인된 사용자가 있으면 토큰 유효성 검사
+      if (user) {
+        await validateToken();
+      }
+    }
+    appState.current = nextAppState;
+  };
+
+  const validateToken = async () => {
+    try {
+      console.log('🔍 Validating token...');
+      // 현재 사용자 정보를 가져와서 토큰이 유효한지 확인
+      await authApi.getCurrentUser();
+      console.log('✅ Token is valid');
+    } catch (error: any) {
+      console.log('❌ Token validation failed:', error.response?.status);
+      // 401 에러는 interceptor에서 이미 로그아웃 처리됨
+      // 다른 에러는 무시 (네트워크 오류 등)
+      if (error.response?.status !== 401) {
+        console.log('ℹ️ Token validation failed due to network or other error - keeping user logged in');
+      }
+    }
+  };
+
   const loadStoredUser = async () => {
     try {
       console.log('🔍 Checking stored user...');
@@ -42,7 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (storedUser && storedToken) {
         setUser(storedUser);
-        setAuthToken(storedToken); // axios에 토큰 설정
+        // client.ts의 interceptor가 자동으로 토큰을 추가하므로 별도 설정 불필요
         console.log('✅ Auto-login successful');
       } else {
         console.log('ℹ️ No stored credentials found');
@@ -58,7 +96,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await storage.saveAccessToken(accessToken);
       await storage.saveUser(userData);
-      setAuthToken(accessToken); // axios에 토큰 설정
+      // client.ts의 interceptor가 자동으로 토큰을 추가하므로 별도 설정 불필요
       setUser(userData);
     } catch (error) {
       console.error('Failed to login:', error);
@@ -73,9 +111,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await storage.clearAll();
     console.log('✅ Storage cleared');
 
-    setAuthToken(null); // axios 토큰 제거
-    console.log('✅ Auth token removed from axios');
-
+    // client.ts의 interceptor가 다음 요청 시 토큰이 없음을 감지하므로 별도 제거 불필요
     setUser(null);
     console.log('✅ User state cleared');
 
