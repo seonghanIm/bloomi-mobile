@@ -2,9 +2,9 @@
   "expo": {
     "name": "bloomi-mobile",
     "slug": "bloomi-mobile",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/bloomi_full_logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "scheme": "bloomi",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.seonghanim.bloomi",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "infoPlist": {
         "NSCameraUsageDescription": "BLOOMI가 음식 사진을 촬영하기 위해 카메라 접근이 필요합니다.",
         "NSPhotoLibraryUsageDescription": "BLOOMI가 음식 사진을 선택하기 위해 사진 접근이 필요합니다.",
