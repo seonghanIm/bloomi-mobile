@@ -2,16 +2,20 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useRe
 import { AppState, AppStateStatus } from 'react-native';
 import { storage } from '../utils/storage';
 import { authApi } from '../api/authApi';
-import { User } from '../types/api';
+import { User, TermsAgreementRequest, OnboardingRequest } from '../types/api';
 import { setUnauthorizedHandler } from '../api/client';
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  needsTermsAgreement: boolean;
+  needsOnboarding: boolean;
   login: (accessToken: string, user: User) => Promise<void>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
+  agreeToTerms: (request: TermsAgreementRequest) => Promise<void>;
+  completeOnboarding: (request: OnboardingRequest) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -147,15 +151,59 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const agreeToTerms = async (request: TermsAgreementRequest) => {
+    try {
+      console.log('📝 Agreeing to terms...');
+      const updatedUser = await authApi.agreeToTerms(request);
+
+      // 업데이트된 사용자 정보 저장
+      const newUser = { ...user, ...updatedUser, termsAgreed: true, privacyAgreed: true };
+      await storage.saveUser(newUser);
+      setUser(newUser);
+
+      console.log('✅ Terms agreement completed');
+    } catch (error) {
+      console.error('❌ Failed to agree to terms:', error);
+      throw error;
+    }
+  };
+
+  const completeOnboarding = async (request: OnboardingRequest) => {
+    try {
+      console.log('🎉 Completing onboarding...');
+      const updatedUser = await authApi.completeOnboarding(request);
+
+      // 업데이트된 사용자 정보 저장
+      const newUser = { ...user, ...updatedUser };
+      await storage.saveUser(newUser);
+      setUser(newUser);
+
+      console.log('✅ Onboarding completed');
+    } catch (error) {
+      console.error('❌ Failed to complete onboarding:', error);
+      throw error;
+    }
+  };
+
+  // 약관 동의가 필요한지 확인 (로그인됨 + 필수 약관 미동의)
+  const needsTermsAgreement = !!user && !user.termsAgreed;
+
+  // 온보딩이 필요한지 확인 (로그인됨 + 약관 동의 완료 + 온보딩 미완료)
+  const needsOnboarding = !!user && user.termsAgreed && !user.onboardingCompleted;
+
   return (
     <AuthContext.Provider
       value={{
         user,
         isLoading,
         isAuthenticated: !!user,
+        needsTermsAgreement,
+        needsOnboarding,
         login,
         logout,
         deleteAccount,
+        agreeToTerms,
+        completeOnboarding,
       }}
     >
       {children}

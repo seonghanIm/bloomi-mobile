@@ -11,6 +11,12 @@ export interface AuthResponse {
   user: User;
 }
 
+// Gender enum
+export type Gender = 'MALE' | 'FEMALE' | 'NONE';
+
+// Age Range enum
+export type AgeRange = 'TEENS' | 'TWENTIES' | 'THIRTIES' | 'FORTIES_FIFTIES' | 'SIXTIES_PLUS';
+
 export interface User {
   id: string;
   email: string;
@@ -18,6 +24,34 @@ export interface User {
   picture?: string;
   provider: string;
   membership: 'FREE' | 'TIER1';
+  isNewUser?: boolean;
+  termsAgreed?: boolean;
+  privacyAgreed?: boolean;
+  marketingAgreed?: boolean;
+  // Onboarding fields
+  nickname?: string;
+  gender?: Gender;
+  ageRange?: AgeRange;
+  onboardingCompleted?: boolean;
+}
+
+// Terms Agreement Types
+export interface TermsAgreementRequest {
+  termsAgreed: boolean;
+  privacyAgreed: boolean;
+  marketingAgreed: boolean;
+}
+
+// Onboarding Types
+export interface OnboardingRequest {
+  nickname: string;
+  gender: Gender;
+  ageRange: AgeRange;
+}
+
+export interface NicknameCheckResponse {
+  available: boolean;
+  message: string;
 }
 
 // Meal Analysis Types

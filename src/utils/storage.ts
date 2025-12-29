@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const KEYS = {
   ACCESS_TOKEN: '@bloomi:accessToken',
+  REFRESH_TOKEN: '@bloomi:refreshToken',
   USER: '@bloomi:user',
 };
 
@@ -17,6 +18,19 @@ export const storage = {
 
   async removeAccessToken(): Promise<void> {
     await AsyncStorage.removeItem(KEYS.ACCESS_TOKEN);
+  },
+
+  // Refresh Token
+  async saveRefreshToken(token: string): Promise<void> {
+    await AsyncStorage.setItem(KEYS.REFRESH_TOKEN, token);
+  },
+
+  async getRefreshToken(): Promise<string | null> {
+    return await AsyncStorage.getItem(KEYS.REFRESH_TOKEN);
+  },
+
+  async removeRefreshToken(): Promise<void> {
+    await AsyncStorage.removeItem(KEYS.REFRESH_TOKEN);
   },
 
   // User
