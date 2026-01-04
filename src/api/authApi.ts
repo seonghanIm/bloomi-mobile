@@ -3,8 +3,8 @@ import { ApiResponse, AuthResponse, User, TermsAgreementRequest, OnboardingReque
 
 export const authApi = {
   // 현재 사용자 정보 조회
-  getCurrentUser: async (): Promise<AuthResponse> => {
-    const response = await apiClient.get<ApiResponse<AuthResponse>>(
+  getCurrentUser: async (): Promise<User> => {
+    const response = await apiClient.get<ApiResponse<User>>(
       '/auth/me'
     );
     return response.data.data;

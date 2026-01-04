@@ -60,7 +60,13 @@ apiClient.interceptors.response.use(
 
     // 401 에러이고, 재시도하지 않은 요청인 경우
     if (error.response?.status === 401 && !originalRequest._retry) {
-      // refresh 요청 자체가 401이면 바로 로그아웃
+      // logout 요청이 401이면 그냥 무시 (이미 로그아웃 중)
+      if (originalRequest.url?.includes('/auth/logout')) {
+        console.log('🔒 Logout request got 401 - ignoring');
+        return Promise.reject(error);
+      }
+
+      // refresh 요청이 401이면 로그아웃
       if (originalRequest.url?.includes('/auth/refresh')) {
         console.log('🔒 Refresh token expired - logging out');
         if (onUnauthorized) {

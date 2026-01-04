@@ -98,7 +98,7 @@ export default function LoginScreen() {
   const handleGooglePress = async () => {
     try {
       setIsLoading(true);
-      const loginUrl = `${config.apiUrl}/oauth2/authorization/google?state=mobile&prompt=select_account`;
+      const loginUrl = `${config.apiUrl}/oauth2/authorization/google?client_type=mobile&prompt=select_account`;
 
       const result = await WebBrowser.openAuthSessionAsync(
         loginUrl,

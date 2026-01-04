@@ -60,9 +60,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const validateToken = async () => {
     try {
       console.log('🔍 Validating token...');
-      // 현재 사용자 정보를 가져와서 토큰이 유효한지 확인
-      await authApi.getCurrentUser();
+      // 현재 사용자 정보를 가져와서 토큰이 유효한지 확인하고 최신 데이터로 업데이트
+      const freshUser = await authApi.getCurrentUser();
       console.log('✅ Token is valid');
+
+      // 서버에서 받은 최신 유저 정보로 업데이트
+      if (freshUser) {
+        console.log('📥 Updating user data from server:', freshUser.termsAgreed, freshUser.onboardingCompleted);
+        await storage.saveUser(freshUser);
+        setUser(freshUser);
+      }
     } catch (error: any) {
       console.log('❌ Token validation failed:', error.response?.status);
       // 401 에러는 interceptor에서 이미 로그아웃 처리됨
@@ -83,9 +90,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log('🔑 Stored token:', storedToken ? storedToken.substring(0, 20) + '...' : 'None');
 
       if (storedUser && storedToken) {
+        // 일단 저장된 유저로 설정 (빠른 UI 렌더링)
         setUser(storedUser);
-        // client.ts의 interceptor가 자동으로 토큰을 추가하므로 별도 설정 불필요
-        console.log('✅ Auto-login successful');
+        console.log('✅ Auto-login with stored user');
+
+        // 서버에서 최신 유저 정보 가져오기
+        try {
+          console.log('🔄 Fetching fresh user data from server...');
+          const freshUser = await authApi.getCurrentUser();
+          console.log('📥 Server response:', JSON.stringify(freshUser, null, 2));
+          if (freshUser) {
+            console.log('📥 Refreshed user data - termsAgreed:', freshUser.termsAgreed, ', onboardingCompleted:', freshUser.onboardingCompleted);
+            await storage.saveUser(freshUser);
+            setUser(freshUser);
+            console.log('✅ User state updated with fresh data');
+          } else {
+            console.log('⚠️ Server returned null/undefined user');
+          }
+        } catch (refreshError: any) {
+          console.log('⚠️ Failed to refresh user from server:', refreshError.response?.status, refreshError.message);
+          // 401은 interceptor에서 처리됨, 다른 에러는 저장된 유저로 계속 사용
+        }
       } else {
         console.log('ℹ️ No stored credentials found');
       }
@@ -98,6 +123,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (accessToken: string, refreshToken: string | undefined, userData: User) => {
     try {
+      console.log('🔐 Login called with user data:', JSON.stringify(userData, null, 2));
+      console.log('🔐 termsAgreed from OAuth:', userData.termsAgreed);
+      console.log('🔐 onboardingCompleted from OAuth:', userData.onboardingCompleted);
+
       await storage.saveAccessToken(accessToken);
       if (refreshToken) {
         await storage.saveRefreshToken(refreshToken);
@@ -106,6 +135,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await storage.saveUser(userData);
       // client.ts의 interceptor가 자동으로 토큰을 추가하므로 별도 설정 불필요
       setUser(userData);
+      console.log('✅ Login completed, user state set');
     } catch (error) {
       console.error('Failed to login:', error);
       throw error;
