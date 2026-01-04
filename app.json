@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "bloomi-mobile",
+    "name": "eatpy",
     "slug": "bloomi-mobile",
     "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/bloomi_full_logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "scheme": "bloomi",
+    "scheme": "eatpy",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -16,10 +16,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.seonghanim.bloomi",
-      "buildNumber": "5",
+      "buildNumber": "6",
       "infoPlist": {
-        "NSCameraUsageDescription": "BLOOMI가 음식 사진을 촬영하기 위해 카메라 접근이 필요합니다.",
-        "NSPhotoLibraryUsageDescription": "BLOOMI가 음식 사진을 선택하기 위해 사진 접근이 필요합니다.",
+        "NSCameraUsageDescription": "eatpy가 음식 사진을 촬영하기 위해 카메라 접근이 필요합니다.",
+        "NSPhotoLibraryUsageDescription": "eatpy가 음식 사진을 선택하기 위해 사진 접근이 필요합니다.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
