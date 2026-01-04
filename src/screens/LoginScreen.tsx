@@ -76,6 +76,7 @@ export default function LoginScreen() {
     if (queryParams?.token && queryParams?.user) {
       void handleLoginSuccess(
         queryParams.token as string,
+        queryParams.refreshToken as string | undefined,
         JSON.parse(decodeURIComponent(queryParams.user as string))
       );
     } else if (queryParams?.error) {
@@ -84,9 +85,9 @@ export default function LoginScreen() {
     }
   };
 
-  const handleLoginSuccess = async (accessToken: string, user: any) => {
+  const handleLoginSuccess = async (accessToken: string, refreshToken: string | undefined, user: any) => {
     try {
-      await login(accessToken, user);
+      await login(accessToken, refreshToken, user);
     } catch (error) {
       Alert.alert('로그인 실패', '로그인 정보 저장 중 오류가 발생했습니다.');
     } finally {

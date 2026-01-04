@@ -11,7 +11,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   needsTermsAgreement: boolean;
   needsOnboarding: boolean;
-  login: (accessToken: string, user: User) => Promise<void>;
+  login: (accessToken: string, refreshToken: string | undefined, user: User) => Promise<void>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   agreeToTerms: (request: TermsAgreementRequest) => Promise<void>;
@@ -96,9 +96,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const login = async (accessToken: string, userData: User) => {
+  const login = async (accessToken: string, refreshToken: string | undefined, userData: User) => {
     try {
       await storage.saveAccessToken(accessToken);
+      if (refreshToken) {
+        await storage.saveRefreshToken(refreshToken);
+        console.log('🔑 Refresh token saved');
+      }
       await storage.saveUser(userData);
       // client.ts의 interceptor가 자동으로 토큰을 추가하므로 별도 설정 불필요
       setUser(userData);
