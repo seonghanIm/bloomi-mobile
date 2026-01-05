@@ -19,18 +19,27 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { getTodayMeals, analyzeMeal, getMonthlyStatistics } from '../services/mealService';
 import { MealAnalysis } from '../types/meal';
 import { getCurrentYearMonth } from '../utils/dateUtils';
-import CalendarScreen from './CalendarScreen';
-import MealCard from '../components/MealCard';
+import InlineCalendar from '../components/InlineCalendar';
+import MealCardNew from '../components/MealCardNew';
 import SideDrawer from '../components/SideDrawer';
+import EatpyLogo from '../components/EatpyLogo';
+import BottomTabBar from '../components/BottomTabBar';
+
+// 영양소 목표 (하드코딩 - 추후 API에서 가져오기)
+const NUTRITION_GOALS = {
+  calories: 2000,
+  carbs: 300,
+  protein: 60,
+  fat: 65,
+};
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [meals, setMeals] = useState<MealAnalysis[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -38,8 +47,8 @@ export default function HomeScreen() {
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
   const [foodName, setFoodName] = useState('');
   const [foodWeight, setFoodWeight] = useState('');
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [monthlyStats, setMonthlyStats] = useState<Record<string, number>>({});
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [monthlyStats, setMonthlyStats] = useState<Record<string, { dots: number }>>({});
   const [showMenu, setShowMenu] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const appState = useRef(AppState.currentState);
@@ -47,13 +56,13 @@ export default function HomeScreen() {
   // 초기 로드
   useEffect(() => {
     const loadInitialData = async () => {
-      console.log('🚀 HomeScreen: Initial data load started');
+      console.log('HomeScreen: Initial data load started');
       try {
         await Promise.all([loadTodayMeals(), loadMonthlyStats()]);
-        console.log('✅ HomeScreen: Initial data load completed');
+        console.log('HomeScreen: Initial data load completed');
       } catch (error) {
-        console.error('❌ HomeScreen: Initial data load failed:', error);
-        setIsLoading(false); // 에러 발생 시에도 로딩 해제
+        console.error('HomeScreen: Initial data load failed:', error);
+        setIsLoading(false);
       }
     };
 
@@ -67,7 +76,6 @@ export default function HomeScreen() {
         appState.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
-        console.log('🔄 App has come to the foreground, refreshing data...');
         loadTodayMeals();
         loadMonthlyStats();
       }
@@ -82,31 +90,30 @@ export default function HomeScreen() {
   const loadMonthlyStats = async () => {
     try {
       const yearMonth = getCurrentYearMonth();
-      console.log('📊 Loading monthly stats for:', yearMonth);
       const stats = await getMonthlyStatistics(yearMonth);
-      setMonthlyStats(stats);
-      console.log('✅ Monthly stats loaded');
+      // 형식 변환: { "2025-01-15": 3 } -> { "2025-01-15": { dots: 3 } }
+      const formattedStats: Record<string, { dots: number }> = {};
+      Object.entries(stats).forEach(([date, count]) => {
+        formattedStats[date] = { dots: count as number };
+      });
+      setMonthlyStats(formattedStats);
     } catch (error) {
-      console.error('❌ Failed to load monthly stats:', error);
+      console.error('Failed to load monthly stats:', error);
     }
   };
 
   const loadTodayMeals = async () => {
     try {
-      console.log('🍽️ Loading today meals...');
       const todayMeals = await getTodayMeals();
       setMeals(todayMeals);
-      console.log('✅ Today meals loaded:', todayMeals.length);
     } catch (error) {
-      console.error('❌ Failed to load today meals:', error);
-      // 에러가 발생해도 빈 배열로 설정
+      console.error('Failed to load today meals:', error);
       setMeals([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Pull-to-refresh 핸들러
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -119,30 +126,19 @@ export default function HomeScreen() {
   }, []);
 
   const handleAddMeal = async () => {
-    // 권한 요청
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('권한 필요', '카메라 권한이 필요합니다.');
       return;
     }
 
-    // 카메라 or 갤러리 선택
     Alert.alert(
       '식단 추가',
       '사진을 선택해주세요',
       [
-        {
-          text: '카메라',
-          onPress: () => takePicture(),
-        },
-        {
-          text: '갤러리',
-          onPress: () => pickImage(),
-        },
-        {
-          text: '취소',
-          style: 'cancel',
-        },
+        { text: '카메라', onPress: () => takePicture() },
+        { text: '갤러리', onPress: () => pickImage() },
+        { text: '취소', style: 'cancel' },
       ]
     );
   };
@@ -191,7 +187,6 @@ export default function HomeScreen() {
     setShowInputModal(false);
     await analyzeImage(selectedImageUri, foodName, foodWeight);
 
-    // 초기화
     setSelectedImageUri(null);
     setFoodName('');
     setFoodWeight('');
@@ -208,35 +203,23 @@ export default function HomeScreen() {
     try {
       setIsAnalyzing(true);
 
-      // URI에서 파일명 추출
       const filename = uri.split('/').pop() || 'meal.jpg';
       const match = /\.(\w+)$/.exec(filename);
       const type = match ? `image/${match[1]}` : 'image/jpeg';
 
-      console.log('🍽️ Analyzing meal image:', filename);
-      if (name) console.log('📝 Food name:', name);
-      if (weight) console.log('⚖️ Food weight:', weight, 'g');
-
       const result = await analyzeMeal({
-        image: {
-          uri,
-          type,
-          name: filename,
-        },
+        image: { uri, type, name: filename },
         name: name || undefined,
         weight: weight ? parseFloat(weight) : undefined,
       });
 
-      console.log('✅ Analysis result:', result);
-
-      // 성공 메시지
       Alert.alert(
         '분석 완료!',
         `칼로리: ${Math.round(result.calories)}kcal\n신뢰도: ${Math.round(result.confidence * 100)}%\n\n${result.advice}`,
         [{ text: '확인', onPress: () => loadTodayMeals() }]
       );
     } catch (error: any) {
-      console.error('❌ Analysis error:', error);
+      console.error('Analysis error:', error);
       Alert.alert(
         '분석 실패',
         error.response?.data?.message || '식단 분석 중 오류가 발생했습니다.'
@@ -246,44 +229,46 @@ export default function HomeScreen() {
     }
   };
 
-  // 오늘 총 칼로리 계산
+  // 오늘 총 영양소 계산
   const totalCalories = meals?.reduce((sum, meal) => sum + meal.calories, 0) || 0;
+  const totalCarbs = meals?.reduce((sum, meal) => sum + meal.macros.carbs, 0) || 0;
+  const totalProtein = meals?.reduce((sum, meal) => sum + meal.macros.protein, 0) || 0;
+  const totalFat = meals?.reduce((sum, meal) => sum + meal.macros.fat, 0) || 0;
+
+  // 목표 대비 퍼센트
+  const carbsPercent = Math.round((totalCarbs / NUTRITION_GOALS.carbs) * 100);
+  const proteinPercent = Math.round((totalProtein / NUTRITION_GOALS.protein) * 100);
+  const fatPercent = Math.round((totalFat / NUTRITION_GOALS.fat) * 100);
+
+  // 감정 메시지 결정
+  const getEmotionMessage = () => {
+    const caloriePercent = (totalCalories / NUTRITION_GOALS.calories) * 100;
+    if (caloriePercent < 30) return '식사를 시작해볼까요?';
+    if (caloriePercent < 60) return '잘 하고 있어요!';
+    if (caloriePercent < 90) return '아주 행복해요!';
+    if (caloriePercent < 110) return '완벽해요!';
+    return '조금 과식했어요';
+  };
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#30C58F" />
+        <ActivityIndicator size="large" color="#88DC00" />
       </View>
-    );
-  }
-
-  if (showCalendar) {
-    return (
-      <CalendarScreen
-        onClose={() => {
-          setShowCalendar(false);
-          // 캘린더에서 돌아올 때 데이터 새로고침
-          loadTodayMeals();
-          loadMonthlyStats();
-        }}
-        monthlyStats={monthlyStats}
-      />
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-        <View>
-          <Text style={styles.greeting}>안녕하세요,</Text>
-          <Text style={styles.name}>{user?.name}님! 👋</Text>
-        </View>
+      {/* 헤더 */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <EatpyLogo width={60} height={19} />
         <View style={styles.headerButtons}>
-          <TouchableOpacity onPress={() => setShowCalendar(true)} style={styles.iconButton}>
-            <Ionicons name="calendar-outline" size={28} color="#333" />
+          <TouchableOpacity style={styles.headerButton}>
+            <Text style={styles.headerButtonText}>알림</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowMenu(true)} style={styles.iconButton}>
-            <Ionicons name="menu-outline" size={28} color="#333" />
+          <TouchableOpacity style={styles.headerButton} onPress={() => setShowMenu(true)}>
+            <Text style={styles.headerButtonText}>메뉴</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -295,34 +280,71 @@ export default function HomeScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#30C58F']}
-            tintColor="#30C58F"
+            colors={['#88DC00']}
+            tintColor="#88DC00"
           />
         }
       >
-        {/* 오늘 총 칼로리 */}
-        <View style={styles.calorieCard}>
-          <Text style={styles.calorieLabel}>오늘 섭취한 칼로리</Text>
-          <Text style={styles.calorieValue}>{Math.round(totalCalories)}</Text>
-          <Text style={styles.calorieUnit}>kcal</Text>
+        {/* 인사말 */}
+        <View style={styles.greetingSection}>
+          <Text style={styles.greetingText}>
+            {user?.name || '사용자'}님,{'\n'}
+            아주 행복한 식단 생활중이에요. 😋
+          </Text>
         </View>
 
-        {/* 식단 추가 버튼 */}
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={handleAddMeal}
-          disabled={isAnalyzing}
-        >
-          {isAnalyzing ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.addButtonText}>+ 식단 추가하기</Text>
-          )}
-        </TouchableOpacity>
+        {/* 캘린더 */}
+        <InlineCalendar
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          markedDates={monthlyStats}
+        />
 
-        {/* 오늘 식단 목록 */}
-        <View style={styles.mealsSection}>
-          <Text style={styles.sectionTitle}>오늘의 식단</Text>
+        {/* 구분선 */}
+        <View style={styles.divider} />
+
+        {/* 오늘 식단 섹션 */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>오늘 식단</Text>
+
+          {/* 영양 요약 카드 */}
+          <View style={styles.nutritionCard}>
+            <View style={styles.nutritionHeader}>
+              <View style={styles.calorieRow}>
+                <Text style={styles.calorieValue}>
+                  {Math.round(totalCalories).toLocaleString()}
+                </Text>
+                <Text style={styles.calorieUnit}>kcal</Text>
+              </View>
+              <Text style={styles.emotionText}>{getEmotionMessage()} 😋</Text>
+            </View>
+
+            <View style={styles.macrosBreakdown}>
+              <View style={styles.macroRow}>
+                <Text style={styles.macroLabel}>탄수화물</Text>
+                <Text style={styles.macroValue}>
+                  {Math.round(totalCarbs)}/ {NUTRITION_GOALS.carbs}g
+                </Text>
+                <Text style={styles.macroPercent}>{carbsPercent}%</Text>
+              </View>
+              <View style={styles.macroRow}>
+                <Text style={styles.macroLabel}>단백질</Text>
+                <Text style={styles.macroValue}>
+                  {Math.round(totalProtein)}/ {NUTRITION_GOALS.protein}g
+                </Text>
+                <Text style={styles.macroPercent}>{proteinPercent}%</Text>
+              </View>
+              <View style={styles.macroRow}>
+                <Text style={styles.macroLabel}>지방</Text>
+                <Text style={styles.macroValue}>
+                  {Math.round(totalFat)}/ {NUTRITION_GOALS.fat}g
+                </Text>
+                <Text style={styles.macroPercent}>{fatPercent}%</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* 식단 목록 */}
           {!meals || meals.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>아직 기록이 없어요</Text>
@@ -332,32 +354,35 @@ export default function HomeScreen() {
             </View>
           ) : (
             [...meals].reverse().map((meal, index) => (
-              <MealCard key={index} meal={meal} />
+              <MealCardNew key={index} meal={meal} mealIndex={index} />
             ))
           )}
         </View>
 
-        {/* 통계 */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{meals?.length || 0}</Text>
-            <Text style={styles.statLabel}>오늘 기록</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>
-              {meals && meals.length > 0
-                ? Math.round(
-                    meals.reduce((sum, m) => sum + m.confidence, 0) /
-                      meals.length *
-                      100
-                  )
-                : 0}
-              %
-            </Text>
-            <Text style={styles.statLabel}>평균 신뢰도</Text>
-          </View>
-        </View>
+        {/* 하단 여백 (바텀 탭바 공간 확보) */}
+        <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* 바텀 탭바 */}
+      <BottomTabBar
+        activeTab="home"
+        onTabPress={(tab) => {
+          if (tab === 'add') {
+            handleAddMeal();
+          } else if (tab === 'menu') {
+            setShowMenu(true);
+          }
+          // home 탭은 이미 현재 화면이므로 별도 처리 불필요
+        }}
+      />
+
+      {/* 분석 중 인디케이터 */}
+      {isAnalyzing && (
+        <View style={styles.analyzingOverlay}>
+          <ActivityIndicator size="large" color="#88DC00" />
+          <Text style={styles.analyzingText}>분석 중...</Text>
+        </View>
+      )}
 
       {/* 음식 정보 입력 모달 */}
       <Modal
@@ -441,10 +466,7 @@ export default function HomeScreen() {
       </Modal>
 
       {/* 사이드 메뉴 드로어 */}
-      <SideDrawer
-        visible={showMenu}
-        onClose={() => setShowMenu(false)}
-      />
+      <SideDrawer visible={showMenu} onClose={() => setShowMenu(false)} />
     </View>
   );
 }
@@ -464,74 +486,109 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
   headerButtons: {
     flexDirection: 'row',
     gap: 8,
   },
-  iconButton: {
-    padding: 8,
+  headerButton: {
+    backgroundColor: '#D9D9D9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
   },
-  greeting: {
-    fontSize: 20,
-    color: '#666',
-  },
-  name: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 4,
+  headerButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#000',
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
   },
-  calorieCard: {
-    backgroundColor: '#43cb9b',
-    borderRadius: 20,
-    padding: 32,
-    alignItems: 'center',
-    marginBottom: 20,
+  greetingSection: {
+    marginBottom: 8,
   },
-  calorieLabel: {
-    fontSize: 16,
-    color: '#fff',
-    opacity: 0.9,
-    marginBottom: 12,
-  },
-  calorieValue: {
-    fontSize: 56,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  calorieUnit: {
+  greetingText: {
     fontSize: 20,
-    color: '#fff',
-    opacity: 0.9,
-    marginTop: 4,
+    fontWeight: '500',
+    color: '#000',
+    lineHeight: 28,
   },
-  addButton: {
-    backgroundColor: '#B49DF8',
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: 32,
+  divider: {
+    height: 12,
+    backgroundColor: '#F2F2F7',
+    marginHorizontal: -16,
+    marginVertical: 24,
   },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  mealsSection: {
-    marginBottom: 24,
+  section: {
+    gap: 12,
   },
   sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+  },
+  nutritionCard: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 4,
+    padding: 16,
+    gap: 16,
+  },
+  nutritionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  calorieRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  calorieValue: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 16,
+    fontWeight: '500',
+    color: '#000',
+  },
+  calorieUnit: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#000',
+    marginBottom: 1,
+  },
+  emotionText: {
+    fontSize: 20,
+    fontWeight: '500',
+    color: '#000',
+  },
+  macrosBreakdown: {
+    gap: 4,
+  },
+  macroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  macroLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#000',
+    width: 100,
+  },
+  macroValue: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#000',
+    textAlign: 'right',
+  },
+  macroPercent: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#000',
+    width: 50,
+    textAlign: 'right',
   },
   emptyState: {
     backgroundColor: '#F5F5F5',
@@ -549,27 +606,22 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
   },
-  statsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 16,
-    padding: 20,
+  analyzingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 100,
   },
-  statValue: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#B49DF8',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 13,
-    color: '#666',
+  analyzingText: {
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
   },
   modalOverlay: {
     flex: 1,
@@ -639,7 +691,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   submitButton: {
-    backgroundColor: '#30C58F',
+    backgroundColor: '#88DC00',
   },
   submitButtonText: {
     color: '#fff',
