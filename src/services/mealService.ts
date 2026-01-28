@@ -29,6 +29,21 @@ export const analyzeMeal = async (request: AnalyzeMealRequest): Promise<MealAnal
   if (request.notes) {
     formData.append('notes', request.notes);
   }
+  if (request.mealType) {
+    formData.append('mealType', request.mealType);
+  }
+  if (request.emotion) {
+    formData.append('emotion', request.emotion);
+  }
+  if (request.location) {
+    formData.append('location', request.location);
+  }
+  if (request.participants && request.participants.length > 0) {
+    // 참여자 목록을 개별 필드로 전송 (Spring List 바인딩)
+    request.participants.forEach(participant => {
+      formData.append('participants', participant);
+    });
+  }
 
   const response = await apiClient.post<{ code: string; message: string; data: MealAnalysis }>(
     '/api/v1/meal/analyze',

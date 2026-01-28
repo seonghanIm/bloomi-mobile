@@ -1,45 +1,83 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { MealAnalysis } from '../types/meal';
+import {
+  MealAnalysis,
+  MealType,
+  MealEmotion,
+  MEAL_TYPE_LABELS,
+  MEAL_EMOTION_LABELS,
+} from '../types/meal';
 
 interface MealCardNewProps {
   meal: MealAnalysis;
   mealIndex: number;
 }
 
-// 식사 타입 결정 (시간 기반 또는 인덱스 기반)
-const getMealType = (index: number): { label: string; color: string } => {
-  // 추후 API에서 mealType을 받아올 예정
-  // 현재는 인덱스로 임시 결정
-  const types = [
-    { label: '아침', color: '#F2F2F7' },
-    { label: '점심', color: '#F2F2F7' },
-    { label: '저녁', color: '#F2F2F7' },
-    { label: '간식', color: '#F2F2F7' },
-  ];
-  return types[index % types.length];
+// 식사 타입 표시 (API 데이터 또는 인덱스 기반 폴백)
+const getMealTypeDisplay = (mealType?: MealType, index?: number): { label: string; color: string } => {
+  if (mealType) {
+    return { label: MEAL_TYPE_LABELS[mealType], color: '#F2F2F7' };
+  }
+  // 폴백: 인덱스 기반
+  const types: MealType[] = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
+  const fallbackType = types[(index || 0) % types.length];
+  return { label: MEAL_TYPE_LABELS[fallbackType], color: '#F2F2F7' };
 };
 
-// 감정 상태 결정 (신뢰도 기반)
-const getEmotionChip = (confidence: number): { label: string; bgColor: string } => {
-  if (confidence >= 0.8) return { label: '즐거워요', bgColor: '#88DC00' };
-  if (confidence >= 0.6) return { label: '할만해요', bgColor: '#FFB515' };
-  if (confidence >= 0.4) return { label: '보통이에요', bgColor: '#D9D9D9' };
+// 감정 상태 표시 (API 데이터 또는 신뢰도 기반 폴백)
+const getEmotionDisplay = (emotion?: MealEmotion, confidence?: number): { label: string; bgColor: string } => {
+  if (emotion) {
+    const emotionData = MEAL_EMOTION_LABELS[emotion];
+    // 감정에 따른 색상 매핑
+    const colorMap: Record<MealEmotion, string> = {
+      HAPPY: '#88DC00',
+      SATISFIED: '#88DC00',
+      NORMAL: '#D9D9D9',
+      SAD: '#FF383C',
+      STRESSED: '#FF383C',
+      TIRED: '#FFB515',
+    };
+    return { label: emotionData.label, bgColor: colorMap[emotion] };
+  }
+  // 폴백: 신뢰도 기반
+  const conf = confidence || 0.5;
+  if (conf >= 0.8) return { label: '즐거워요', bgColor: '#88DC00' };
+  if (conf >= 0.6) return { label: '할만해요', bgColor: '#FFB515' };
+  if (conf >= 0.4) return { label: '보통이에요', bgColor: '#D9D9D9' };
   return { label: '어려워요', bgColor: '#FF383C' };
 };
 
+// 참여자 표시 텍스트 생성
+const getParticipantsDisplay = (participants?: string[]): string => {
+  if (!participants || participants.length === 0) {
+    return '나';
+  }
+  if (participants.length <= 3) {
+    return participants.join(', ');
+  }
+  // 3명 초과시 +N 표시
+  const displayNames = participants.slice(0, 3).join(', ');
+  const remainingCount = participants.length - 3;
+  return `${displayNames} +${remainingCount}`;
+};
+
 export default function MealCardNew({ meal, mealIndex }: MealCardNewProps) {
-  const mealType = getMealType(mealIndex);
-  const emotion = getEmotionChip(meal.confidence);
+  const mealType = getMealTypeDisplay(meal.mealType, mealIndex);
+  const emotion = getEmotionDisplay(meal.emotion, meal.confidence);
+  const participantsText = getParticipantsDisplay(meal.participants);
 
   return (
     <View style={styles.container}>
-      {/* 썸네일 이미지 영역 (추후 이미지 URL 추가 시 사용) */}
+      {/* 썸네일 이미지 영역 */}
       <View style={styles.imageContainer}>
-        <View style={styles.imagePlaceholder}>
-          <Ionicons name="restaurant-outline" size={40} color="#D1D1D6" />
-        </View>
+        {meal.imageUrl ? (
+          <Image source={{ uri: meal.imageUrl }} style={styles.mealImage} />
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <Ionicons name="restaurant-outline" size={40} color="#D1D1D6" />
+          </View>
+        )}
       </View>
 
       {/* 정보 영역 */}
@@ -69,19 +107,21 @@ export default function MealCardNew({ meal, mealIndex }: MealCardNewProps) {
           </View>
         </View>
 
-        {/* 메타 정보 (사람, 위치) - 추후 API 확장 시 사용 */}
+        {/* 메타 정보 (사람, 위치) */}
         <View style={styles.metaContainer}>
-          {/* 참여자 (추후 구현) */}
+          {/* 참여자 */}
           <View style={styles.metaRow}>
-            <Ionicons name="person-outline" size={16} color="#D1D1D6" />
-            <Text style={styles.metaText}>나</Text>
+            <Ionicons name="people-outline" size={16} color="#D1D1D6" />
+            <Text style={styles.metaText}>{participantsText}</Text>
           </View>
 
-          {/* 위치 (추후 구현) */}
-          {/* <View style={styles.metaRow}>
-            <Ionicons name="location-outline" size={16} color="#D1D1D6" />
-            <Text style={styles.metaText}>위치 정보</Text>
-          </View> */}
+          {/* 위치 */}
+          {meal.location && (
+            <View style={styles.metaRow}>
+              <Ionicons name="location-outline" size={16} color="#D1D1D6" />
+              <Text style={styles.metaText}>{meal.location}</Text>
+            </View>
+          )}
         </View>
       </View>
     </View>
