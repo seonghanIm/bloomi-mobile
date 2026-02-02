@@ -11,6 +11,7 @@ interface InlineCalendarProps {
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
   markedDates?: Record<string, { dots?: number }>;
+  compact?: boolean;
 }
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -19,6 +20,7 @@ export default function InlineCalendar({
   selectedDate,
   onSelectDate,
   markedDates = {},
+  compact = false,
 }: InlineCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate));
 
@@ -98,27 +100,28 @@ export default function InlineCalendar({
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, compact && styles.containerCompact]}>
       {/* 월 네비게이션 */}
       <View style={styles.header}>
         <TouchableOpacity onPress={goToPrevMonth} style={styles.navButton}>
-          <Ionicons name="chevron-back" size={20} color="#000" />
+          <Ionicons name="chevron-back" size={compact ? 16 : 20} color="#000" />
         </TouchableOpacity>
-        <Text style={styles.monthText}>
+        <Text style={[styles.monthText, compact && styles.monthTextCompact]}>
           {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
         </Text>
         <TouchableOpacity onPress={goToNextMonth} style={styles.navButton}>
-          <Ionicons name="chevron-forward" size={20} color="#000" />
+          <Ionicons name="chevron-forward" size={compact ? 16 : 20} color="#000" />
         </TouchableOpacity>
       </View>
 
       {/* 요일 헤더 */}
       <View style={styles.weekdaysRow}>
         {WEEKDAYS.map((day, index) => (
-          <View key={day} style={styles.weekdayCell}>
+          <View key={day} style={[styles.weekdayCell, compact && styles.weekdayCellCompact]}>
             <Text
               style={[
                 styles.weekdayText,
+                compact && styles.weekdayTextCompact,
                 index === 0 && styles.sundayText,
                 index === 6 && styles.saturdayText,
               ]}
@@ -143,14 +146,20 @@ export default function InlineCalendar({
           return (
             <TouchableOpacity
               key={index}
-              style={styles.dayCell}
+              style={[styles.dayCell, compact && styles.dayCellCompact]}
               onPress={() => day && day > 0 && handleDayPress(day)}
               disabled={!day || day < 0}
             >
-              <View style={[styles.dayContent, selected && styles.selectedDay]}>
+              <View style={[
+                styles.dayContent,
+                compact && styles.dayContentCompact,
+                selected && styles.selectedDay,
+                selected && compact && styles.selectedDayCompact,
+              ]}>
                 <Text
                   style={[
                     styles.dayText,
+                    compact && styles.dayTextCompact,
                     isPrevMonth && styles.prevMonthText,
                     isSunday(index) && !isPrevMonth && styles.sundayText,
                     isSaturday(index) && !isPrevMonth && styles.saturdayText,
@@ -162,7 +171,7 @@ export default function InlineCalendar({
                 </Text>
               </View>
               {/* 기록 있는 날 표시 (점) */}
-              {hasMeals && !selected ? (
+              {hasMeals && !selected && !compact ? (
                 <View style={styles.dotsContainer}>
                   <View style={[styles.dot, styles.dotGreen]} />
                   {hasMeals > 1 && <View style={[styles.dot, styles.dotGreen]} />}
@@ -180,6 +189,9 @@ const styles = StyleSheet.create({
   container: {
     paddingVertical: 16,
   },
+  containerCompact: {
+    paddingVertical: 8,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -195,6 +207,10 @@ const styles = StyleSheet.create({
     color: '#000',
     marginHorizontal: 16,
   },
+  monthTextCompact: {
+    fontSize: 16,
+    marginHorizontal: 12,
+  },
   weekdaysRow: {
     flexDirection: 'row',
     marginBottom: 8,
@@ -204,9 +220,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
   },
+  weekdayCellCompact: {
+    paddingVertical: 4,
+  },
   weekdayText: {
     fontSize: 14,
     color: 'rgba(60, 60, 67, 0.8)',
+  },
+  weekdayTextCompact: {
+    fontSize: 12,
   },
   sundayText: {
     color: '#FF383C',
@@ -224,6 +246,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     minHeight: 52,
   },
+  dayCellCompact: {
+    minHeight: 32,
+    paddingVertical: 2,
+  },
   dayContent: {
     width: 36,
     height: 36,
@@ -231,13 +257,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 18,
   },
+  dayContentCompact: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
   selectedDay: {
     backgroundColor: '#88DC00',
+  },
+  selectedDayCompact: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
   },
   dayText: {
     fontSize: 16,
     fontWeight: '600',
     color: 'rgba(60, 60, 67, 0.6)',
+  },
+  dayTextCompact: {
+    fontSize: 14,
   },
   prevMonthText: {
     color: 'rgba(60, 60, 67, 0.3)',

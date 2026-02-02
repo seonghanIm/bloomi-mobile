@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  MealAnalysis,
+  MealRecord,
   MealType,
   MealEmotion,
   MEAL_TYPE_LABELS,
@@ -10,7 +10,7 @@ import {
 } from '../types/meal';
 
 interface MealCardNewProps {
-  meal: MealAnalysis;
+  meal: MealRecord;
   mealIndex: number;
 }
 
@@ -29,7 +29,6 @@ const getMealTypeDisplay = (mealType?: MealType, index?: number): { label: strin
 const getEmotionDisplay = (emotion?: MealEmotion, confidence?: number): { label: string; bgColor: string } => {
   if (emotion) {
     const emotionData = MEAL_EMOTION_LABELS[emotion];
-    // 감정에 따른 색상 매핑
     const colorMap: Record<MealEmotion, string> = {
       HAPPY: '#88DC00',
       SATISFIED: '#88DC00',
@@ -56,7 +55,6 @@ const getParticipantsDisplay = (participants?: string[]): string => {
   if (participants.length <= 3) {
     return participants.join(', ');
   }
-  // 3명 초과시 +N 표시
   const displayNames = participants.slice(0, 3).join(', ');
   const remainingCount = participants.length - 3;
   return `${displayNames} +${remainingCount}`;

@@ -7,27 +7,25 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  Image,
   Modal,
-  TextInput,
   RefreshControl,
   AppState,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableWithoutFeedback,
-  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../contexts/AuthContext';
 import { getTodayMeals, analyzeMeal, getMonthlyStatistics } from '../services/mealService';
-import { MealAnalysis } from '../types/meal';
+import { MealRecord, AnalyzeMealResponse } from '../types/meal';
 import { getCurrentYearMonth } from '../utils/dateUtils';
 import InlineCalendar from '../components/InlineCalendar';
 import MealCardNew from '../components/MealCardNew';
 import SideDrawer from '../components/SideDrawer';
 import EatpyLogo from '../components/EatpyLogo';
 import BottomTabBar from '../components/BottomTabBar';
+import MealRecordScreen from './MealRecordScreen';
+import MealResultScreen from './MealResultScreen';
+import ImagePickerBottomSheet from '../components/ImagePickerBottomSheet';
+import AnimatedBottomSheet from '../components/AnimatedBottomSheet';
 
 // 영양소 목표 (하드코딩 - 추후 API에서 가져오기)
 const NUTRITION_GOALS = {
@@ -40,18 +38,22 @@ const NUTRITION_GOALS = {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const [meals, setMeals] = useState<MealAnalysis[]>([]);
+  const [meals, setMeals] = useState<MealRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [showInputModal, setShowInputModal] = useState(false);
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
-  const [foodName, setFoodName] = useState('');
-  const [foodWeight, setFoodWeight] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [monthlyStats, setMonthlyStats] = useState<Record<string, { dots: number }>>({});
   const [showMenu, setShowMenu] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const appState = useRef(AppState.currentState);
+
+  // New flow states
+  const [showImagePicker, setShowImagePicker] = useState(false);
+  const [showRecordScreen, setShowRecordScreen] = useState(false);
+  const [showResultScreen, setShowResultScreen] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<AnalyzeMealResponse | null>(null);
+  const [savedMeal, setSavedMeal] = useState<MealRecord | null>(null);
 
   // 초기 로드
   useEffect(() => {
@@ -125,26 +127,18 @@ export default function HomeScreen() {
     }
   }, []);
 
-  const handleAddMeal = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('권한 필요', '카메라 권한이 필요합니다.');
-      return;
-    }
-
-    Alert.alert(
-      '식단 추가',
-      '사진을 선택해주세요',
-      [
-        { text: '카메라', onPress: () => takePicture() },
-        { text: '갤러리', onPress: () => pickImage() },
-        { text: '취소', style: 'cancel' },
-      ]
-    );
+  const handleAddMeal = () => {
+    setShowImagePicker(true);
   };
 
   const takePicture = async () => {
     try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('권한 필요', '카메라 권한이 필요합니다.');
+        return;
+      }
+
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
@@ -153,8 +147,9 @@ export default function HomeScreen() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        setSelectedImageUri(result.assets[0].uri);
-        setShowInputModal(true);
+        const uri = result.assets[0].uri;
+        setSelectedImageUri(uri);
+        await analyzeImage(uri);
       }
     } catch (error) {
       console.error('Camera error:', error);
@@ -164,6 +159,12 @@ export default function HomeScreen() {
 
   const pickImage = async () => {
     try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('권한 필요', '갤러리 접근 권한이 필요합니다.');
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
@@ -172,8 +173,9 @@ export default function HomeScreen() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        setSelectedImageUri(result.assets[0].uri);
-        setShowInputModal(true);
+        const uri = result.assets[0].uri;
+        setSelectedImageUri(uri);
+        await analyzeImage(uri);
       }
     } catch (error) {
       console.error('Image picker error:', error);
@@ -181,25 +183,7 @@ export default function HomeScreen() {
     }
   };
 
-  const handleAnalyzeSubmit = async () => {
-    if (!selectedImageUri) return;
-
-    setShowInputModal(false);
-    await analyzeImage(selectedImageUri, foodName, foodWeight);
-
-    setSelectedImageUri(null);
-    setFoodName('');
-    setFoodWeight('');
-  };
-
-  const handleModalCancel = () => {
-    setShowInputModal(false);
-    setSelectedImageUri(null);
-    setFoodName('');
-    setFoodWeight('');
-  };
-
-  const analyzeImage = async (uri: string, name?: string, weight?: string) => {
+  const analyzeImage = async (uri: string) => {
     try {
       setIsAnalyzing(true);
 
@@ -209,15 +193,11 @@ export default function HomeScreen() {
 
       const result = await analyzeMeal({
         image: { uri, type, name: filename },
-        name: name || undefined,
-        weight: weight ? parseFloat(weight) : undefined,
       });
 
-      Alert.alert(
-        '분석 완료!',
-        `칼로리: ${Math.round(result.calories)}kcal\n신뢰도: ${Math.round(result.confidence * 100)}%\n\n${result.advice}`,
-        [{ text: '확인', onPress: () => loadTodayMeals() }]
-      );
+      // Store analysis result and show MealRecordScreen
+      setAnalysisResult(result);
+      setShowRecordScreen(true);
     } catch (error: any) {
       console.error('Analysis error:', error);
       Alert.alert(
@@ -227,6 +207,31 @@ export default function HomeScreen() {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  // Handle meal save from MealRecordScreen
+  const handleMealSave = (meal: MealRecord) => {
+    setSavedMeal(meal);
+    setShowRecordScreen(false);
+    setShowResultScreen(true);
+  };
+
+  // Handle cancel from MealRecordScreen
+  const handleRecordCancel = () => {
+    setShowRecordScreen(false);
+    setSelectedImageUri(null);
+    setAnalysisResult(null);
+  };
+
+  // Handle close from MealResultScreen
+  const handleResultClose = () => {
+    setShowResultScreen(false);
+    setSavedMeal(null);
+    setSelectedImageUri(null);
+    setAnalysisResult(null);
+    // Refresh meals list
+    loadTodayMeals();
+    loadMonthlyStats();
   };
 
   // 오늘 총 영양소 계산
@@ -384,89 +389,50 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* 음식 정보 입력 모달 */}
-      <Modal
-        visible={showInputModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={handleModalCancel}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.modalOverlay}>
-              <TouchableWithoutFeedback>
-                <View style={styles.modalContent}>
-                  <Text style={styles.modalTitle}>음식 정보 입력 (선택)</Text>
-                  <Text style={styles.modalSubtitle}>
-                    더 정확한 분석을 위해 정보를 입력해주세요
-                  </Text>
-
-                  {selectedImageUri && (
-                    <Image
-                      source={{ uri: selectedImageUri }}
-                      style={styles.previewImage}
-                    />
-                  )}
-
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.inputLabel}>음식 이름</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="예: 닭가슴살 샐러드"
-                      value={foodName}
-                      onChangeText={setFoodName}
-                      placeholderTextColor="#999"
-                      returnKeyType="next"
-                    />
-                  </View>
-
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.inputLabel}>중량 (g)</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="예: 350"
-                      value={foodWeight}
-                      onChangeText={setFoodWeight}
-                      keyboardType="numeric"
-                      placeholderTextColor="#999"
-                      returnKeyType="done"
-                      onSubmitEditing={Keyboard.dismiss}
-                    />
-                  </View>
-
-                  <View style={styles.modalButtons}>
-                    <TouchableOpacity
-                      style={[styles.modalButton, styles.skipButton]}
-                      onPress={() => handleAnalyzeSubmit()}
-                    >
-                      <Text style={styles.skipButtonText}>건너뛰기</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.modalButton, styles.submitButton]}
-                      onPress={handleAnalyzeSubmit}
-                    >
-                      <Text style={styles.submitButtonText}>분석하기</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.cancelButton}
-                    onPress={handleModalCancel}
-                  >
-                    <Text style={styles.cancelButtonText}>취소</Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableWithoutFeedback>
-            </View>
-          </TouchableWithoutFeedback>
-        </KeyboardAvoidingView>
-      </Modal>
-
       {/* 사이드 메뉴 드로어 */}
       <SideDrawer visible={showMenu} onClose={() => setShowMenu(false)} />
+
+      {/* 이미지 선택 바텀 시트 */}
+      <ImagePickerBottomSheet
+        visible={showImagePicker}
+        onClose={() => setShowImagePicker(false)}
+        onCamera={takePicture}
+        onGallery={pickImage}
+      />
+
+      {/* MealRecordScreen Modal */}
+      <Modal
+        visible={showRecordScreen}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={handleRecordCancel}
+      >
+        {analysisResult && selectedImageUri && (
+          <MealRecordScreen
+            analysisResult={analysisResult}
+            imageUri={selectedImageUri}
+            onSave={handleMealSave}
+            onCancel={handleRecordCancel}
+          />
+        )}
+      </Modal>
+
+      {/* MealResultScreen Modal */}
+      <Modal
+        visible={showResultScreen}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={handleResultClose}
+      >
+        <View style={styles.resultModalOverlay}>
+          {savedMeal && (
+            <MealResultScreen
+              meal={savedMeal}
+              onClose={handleResultClose}
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -623,87 +589,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#333',
   },
-  modalOverlay: {
+  resultModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 20,
-  },
-  previewImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#333',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  skipButton: {
-    backgroundColor: '#F5F5F5',
-  },
-  skipButtonText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  submitButton: {
-    backgroundColor: '#88DC00',
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  cancelButton: {
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    color: '#999',
-    fontSize: 15,
   },
 });

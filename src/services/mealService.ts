@@ -1,15 +1,18 @@
 import apiClient from '../api/client';
 import config from '../constants/config';
-import { MealAnalysis, AnalyzeMealRequest } from '../types/meal';
+import {
+  AnalyzeMealRequest,
+  AnalyzeMealResponse,
+  SaveMealRequest,
+  MealRecord,
+} from '../types/meal';
 import { formatLocalDate } from '../utils/dateUtils';
 
-// client.ts의 apiClient를 사용하여 401 에러 처리를 통합
-// (setAuthToken은 더 이상 필요 없음 - client.ts의 interceptor가 자동으로 토큰 추가)
-
 /**
- * 식단 이미지 분석
+ * 1단계: 식단 이미지 분석 (저장 X)
+ * - 이미지를 업로드하고 AI 분석 결과만 받음
  */
-export const analyzeMeal = async (request: AnalyzeMealRequest): Promise<MealAnalysis> => {
+export const analyzeMeal = async (request: AnalyzeMealRequest): Promise<AnalyzeMealResponse> => {
   const formData = new FormData();
 
   // 이미지 추가
@@ -19,33 +22,15 @@ export const analyzeMeal = async (request: AnalyzeMealRequest): Promise<MealAnal
     name: request.image.name,
   } as any);
 
-  // 선택적 필드 추가
+  // 선택적 힌트 추가
   if (request.name) {
     formData.append('name', request.name);
   }
   if (request.weight) {
     formData.append('weight', request.weight.toString());
   }
-  if (request.notes) {
-    formData.append('notes', request.notes);
-  }
-  if (request.mealType) {
-    formData.append('mealType', request.mealType);
-  }
-  if (request.emotion) {
-    formData.append('emotion', request.emotion);
-  }
-  if (request.location) {
-    formData.append('location', request.location);
-  }
-  if (request.participants && request.participants.length > 0) {
-    // 참여자 목록을 개별 필드로 전송 (Spring List 바인딩)
-    request.participants.forEach(participant => {
-      formData.append('participants', participant);
-    });
-  }
 
-  const response = await apiClient.post<{ code: string; message: string; data: MealAnalysis }>(
+  const response = await apiClient.post<{ code: string; message: string; data: AnalyzeMealResponse }>(
     '/api/v1/meal/analyze',
     formData,
     {
@@ -55,16 +40,27 @@ export const analyzeMeal = async (request: AnalyzeMealRequest): Promise<MealAnal
     }
   );
 
-  console.log('📡 Full API Response:', JSON.stringify(response.data, null, 2));
+  console.log('📡 Analyze Response:', JSON.stringify(response.data, null, 2));
 
-  // 응답 데이터 검증
-  if (!response.data) {
-    throw new Error('서버 응답이 비어있습니다.');
+  if (!response.data?.data) {
+    throw new Error('서버 응답 형식이 올바르지 않습니다.');
   }
 
-  // data 필드가 없을 경우 처리
-  if (!response.data.data) {
-    console.error('❌ Invalid response structure:', response.data);
+  return response.data.data;
+};
+
+/**
+ * 2단계: 식단 저장 (분석 결과 + 사용자 메타데이터)
+ */
+export const saveMeal = async (request: SaveMealRequest): Promise<MealRecord> => {
+  const response = await apiClient.post<{ code: string; message: string; data: MealRecord }>(
+    '/api/v1/meal/save',
+    request
+  );
+
+  console.log('📡 Save Response:', JSON.stringify(response.data, null, 2));
+
+  if (!response.data?.data) {
     throw new Error('서버 응답 형식이 올바르지 않습니다.');
   }
 
@@ -74,13 +70,12 @@ export const analyzeMeal = async (request: AnalyzeMealRequest): Promise<MealAnal
 /**
  * 오늘 식단 조회
  */
-export const getTodayMeals = async (): Promise<MealAnalysis[]> => {
+export const getTodayMeals = async (): Promise<MealRecord[]> => {
   try {
-    const today = formatLocalDate(); // 로컬 시간대 기준 YYYY-MM-DD
+    const today = formatLocalDate();
     console.log('📡 API Request: GET /api/v1/meal/' + today);
-    console.log('🌐 API URL:', config.apiUrl);
 
-    const response = await apiClient.get<{ code: string; message: string; data: MealAnalysis[] }>(
+    const response = await apiClient.get<{ code: string; message: string; data: MealRecord[] }>(
       `/api/v1/meal/${today}`
     );
 
@@ -88,12 +83,6 @@ export const getTodayMeals = async (): Promise<MealAnalysis[]> => {
     return response.data.data || [];
   } catch (error: any) {
     console.error('❌ Failed to fetch today meals:', error.message);
-    if (error.code === 'ECONNABORTED') {
-      console.error('⏱️ Request timeout');
-    } else if (error.code === 'ERR_NETWORK') {
-      console.error('🌐 Network error - check if server is running');
-    }
-    // 에러 발생 시 빈 배열 반환
     return [];
   }
 };
@@ -101,15 +90,14 @@ export const getTodayMeals = async (): Promise<MealAnalysis[]> => {
 /**
  * 특정 날짜 식단 조회
  */
-export const getMealsByDate = async (date: string): Promise<MealAnalysis[]> => {
+export const getMealsByDate = async (date: string): Promise<MealRecord[]> => {
   try {
-    const response = await apiClient.get<{ code: string; message: string; data: MealAnalysis[] }>(
+    const response = await apiClient.get<{ code: string; message: string; data: MealRecord[] }>(
       `/api/v1/meal/${date}`
     );
     return response.data.data || [];
   } catch (error) {
     console.error('Failed to fetch meals by date:', error);
-    // 에러 발생 시 빈 배열 반환
     return [];
   }
 };
@@ -133,11 +121,9 @@ export const getMonthlyStatistics = async (yearMonth: string): Promise<Record<st
     }>(`/api/v1/meal/monthly/${yearMonth}`);
 
     console.log('✅ API Response received');
-    // dailyCounts를 그대로 반환 (없으면 빈 객체)
     return response.data.data?.dailyCounts || {};
   } catch (error: any) {
     console.error('❌ Failed to fetch monthly statistics:', error.message);
-    // 에러 발생 시 빈 객체 반환
     return {};
   }
 };
