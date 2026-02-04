@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { MealEmotion, MEAL_EMOTION_LABELS, getEmotionByLevel } from '../types/meal';
+import { MealEmotion, MEAL_EMOTION_LABELS } from '../types/meal';
 
 interface HappinessSliderProps {
   value: MealEmotion | null;
@@ -22,6 +22,8 @@ export default function HappinessSlider({ value, onChange }: HappinessSliderProp
     <View style={styles.container}>
       <Text style={styles.title}>행복도</Text>
       <View style={styles.sliderContainer}>
+        {/* Connection line behind circles */}
+        <View style={styles.connectionLine} />
         {EMOTION_LEVELS.map((item) => {
           const isSelected = selectedLevel === item.level;
           return (
@@ -37,14 +39,7 @@ export default function HappinessSlider({ value, onChange }: HappinessSliderProp
                   isSelected && styles.levelCircleSelected,
                 ]}
               >
-                <Text
-                  style={[
-                    styles.levelNumber,
-                    isSelected && styles.levelNumberSelected,
-                  ]}
-                >
-                  {item.level}
-                </Text>
+                <Text style={styles.levelNumber}>{item.level}</Text>
               </View>
               <Text style={styles.levelLabel}>{item.label}</Text>
             </TouchableOpacity>
@@ -57,44 +52,55 @@ export default function HappinessSlider({ value, onChange }: HappinessSliderProp
 
 const styles = StyleSheet.create({
   container: {
-    gap: 12,
+    gap: 20, // Figma: gap-[20px]
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 16, // Figma: text-[16px]
+    fontWeight: '600', // Figma: SemiBold
+    lineHeight: 20, // Figma: leading-[20px]
     color: '#000',
   },
   sliderContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    position: 'relative',
+  },
+  connectionLine: {
+    position: 'absolute',
+    top: 16, // center of 32px circle
+    left: 47,
+    right: 47,
+    height: 2,
+    backgroundColor: '#E5E5EA',
+    zIndex: 0,
   },
   levelItem: {
     flex: 1,
     alignItems: 'center',
-    gap: 4,
+    gap: 8, // Figma: gap-[8px]
+    zIndex: 1,
   },
   levelCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#E5E5EA',
+    width: 32, // Figma: size-[32px]
+    height: 32,
+    borderRadius: 16, // Figma: rounded-[16px]
+    backgroundColor: '#E5E5EA', // Figma: grays/gray-5
     alignItems: 'center',
     justifyContent: 'center',
   },
   levelCircleSelected: {
-    backgroundColor: '#88DC00',
+    backgroundColor: '#B3DC14', // Figma: #b3dc14
   },
   levelNumber: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  levelNumberSelected: {
+    fontSize: 16, // Figma: text-[16px]
+    fontWeight: '600', // Figma: SemiBold
+    lineHeight: 20, // Figma: leading-[20px]
     color: '#fff',
   },
   levelLabel: {
-    fontSize: 12,
-    fontWeight: '400',
+    fontSize: 12, // Figma: text-[12px]
+    fontWeight: '400', // Figma: Regular
+    lineHeight: 20, // Figma: leading-[20px]
     color: '#000',
     textAlign: 'center',
   },

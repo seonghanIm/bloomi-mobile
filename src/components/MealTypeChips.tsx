@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { MealType, MEAL_TYPE_LABELS } from '../types/meal';
 
 interface MealTypeChipsProps {
@@ -36,12 +37,12 @@ export default function MealTypeChips({ value, onChange }: MealTypeChipsProps) {
               onPress={() => onChange(mealType)}
               activeOpacity={0.7}
             >
-              <Text
-                style={[
-                  styles.chipText,
-                  isSelected ? styles.chipTextSelected : styles.chipTextUnselected,
-                ]}
-              >
+              {isSelected && (
+                <View style={styles.checkIcon}>
+                  <Ionicons name="checkmark" size={13} color="#fff" />
+                </View>
+              )}
+              <Text style={styles.chipText}>
                 {MEAL_TYPE_LABELS[mealType]}
               </Text>
             </TouchableOpacity>
@@ -54,40 +55,44 @@ export default function MealTypeChips({ value, onChange }: MealTypeChipsProps) {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 12,
+    gap: 20, // Figma: gap-[20px]
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 16, // Figma: text-[16px]
+    fontWeight: '600', // Figma: SemiBold
+    lineHeight: 20, // Figma: leading-[20px]
     color: '#000',
   },
   chipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 8, // Figma: gap-[8px]
   },
   chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4, // Figma: gap-[4px]
+    paddingHorizontal: 12, // Figma: px-[12px]
+    paddingVertical: 6, // Figma: py-[6px]
+    borderRadius: 16, // Figma: rounded-[16px]
   },
   chipSelected: {
-    backgroundColor: '#88DC00',
+    backgroundColor: '#6E2FF4', // Figma: purple-40
   },
   chipUnselected: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#AEAEB2',
+    backgroundColor: '#E0D6EF', // Figma: purple light
+  },
+  checkIcon: {
+    width: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chipText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  chipTextSelected: {
+    fontSize: 14, // Figma: text-[14px]
+    fontWeight: '600', // Figma: SemiBold
+    lineHeight: 20, // Figma: leading-[20px]
     color: '#fff',
-    fontWeight: '600',
-  },
-  chipTextUnselected: {
-    color: '#AEAEB2',
   },
 });

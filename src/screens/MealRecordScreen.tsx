@@ -25,7 +25,7 @@ import { saveMeal } from '../services/mealService';
 import { formatLocalDate } from '../utils/dateUtils';
 import HappinessSlider from '../components/HappinessSlider';
 import MealTypeChips from '../components/MealTypeChips';
-import InlineCalendar from '../components/InlineCalendar';
+import DateTimeCalendar from '../components/DateTimeCalendar';
 
 interface MealRecordScreenProps {
   analysisResult: AnalyzeMealResponse;
@@ -155,98 +155,87 @@ export default function MealRecordScreen({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
-          style={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.content}
         >
-          {/* Food Image */}
+          {/* Food Image - Figma: h-[320px] */}
           <View style={styles.imageContainer}>
             <Image source={{ uri: imageUri }} style={styles.foodImage} />
           </View>
 
-          {/* Date/Time Section */}
-          <View style={styles.dateTimeCard}>
-            <View style={styles.dateTimeHeader}>
-              <View style={styles.dateContainer}>
-                <Ionicons name="calendar-outline" size={20} color="#666" />
-                <View style={styles.dateBadge}>
-                  <Text style={styles.dateText}>{formatDateDisplay(selectedDate)}</Text>
-                </View>
-              </View>
-              <Text style={styles.timeText}>{selectedTime}</Text>
+          {/* 식단 기록 Section - Figma: gap-[12px] */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>식단 기록</Text>
+
+            {/* Food Name Input Row */}
+            <View style={styles.inputRow}>
+              <Ionicons name="restaurant-outline" size={24} color="#666" />
+              <TextInput
+                style={styles.textInput}
+                value={foodName}
+                onChangeText={setFoodName}
+                placeholder="음식 이름"
+                placeholderTextColor="#999"
+              />
+              <Text style={styles.inputSuffix}>
+                {weight ? `${weight}g` : ''} · {Math.round(analysisResult.calories)}kcal
+              </Text>
             </View>
-            <View style={styles.dividerThin} />
-            <InlineCalendar
-              selectedDate={selectedDate}
-              onSelectDate={setSelectedDate}
-              markedDates={{}}
-              compact
-            />
+
+            {/* 추가 Button */}
+            <TouchableOpacity style={styles.addButton}>
+              <Ionicons name="add" size={12} color="#333" />
+              <Text style={styles.addButtonText}>추가</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Food Name Input */}
-          <View style={styles.inputRow}>
-            <Ionicons name="restaurant-outline" size={20} color="#666" />
-            <TextInput
-              style={styles.textInput}
-              value={foodName}
-              onChangeText={setFoodName}
-              placeholder="음식 이름"
-              placeholderTextColor="#999"
-            />
-          </View>
-
-          {/* Weight Input */}
-          <View style={styles.inputRow}>
-            <Ionicons name="scale-outline" size={20} color="#666" />
-            <TextInput
-              style={styles.textInput}
-              value={weight}
-              onChangeText={setWeight}
-              placeholder="중량 (g)"
-              placeholderTextColor="#999"
-              keyboardType="numeric"
-            />
-          </View>
-
-          {/* Happiness Slider */}
+          {/* 행복도 Slider */}
           <HappinessSlider value={emotion} onChange={setEmotion} />
 
-          {/* Meal Type Chips */}
+          {/* 음식 유형 Chips */}
           <MealTypeChips value={mealType} onChange={setMealType} />
 
-          {/* Divider */}
-          <View style={styles.divider} />
+          {/* Date/Time Calendar - Figma style */}
+          <DateTimeCalendar
+            selectedDate={selectedDate}
+            selectedTime={selectedTime}
+            onDateChange={setSelectedDate}
+            onTimeChange={setSelectedTime}
+          />
 
-          {/* Optional Fields Buttons */}
-          <View style={styles.optionalButtons}>
-            <TouchableOpacity
-              style={styles.optionalButton}
-              onPress={() => setShowNotes(!showNotes)}
-            >
-              <Ionicons name="add" size={12} color="#404040" />
-              <Text style={styles.optionalButtonText}>추가 설명</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.optionalButton}
-              onPress={() => setShowParticipants(!showParticipants)}
-            >
-              <Ionicons name="add" size={12} color="#404040" />
-              <Text style={styles.optionalButtonText}>함께한 사람</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.optionalButton}
-              onPress={() => setShowLocation(!showLocation)}
-            >
-              <Ionicons name="add" size={12} color="#404040" />
-              <Text style={styles.optionalButtonText}>장소</Text>
-            </TouchableOpacity>
+          {/* Optional Section */}
+          <View style={styles.optionalSection}>
+            <View style={styles.divider} />
+            <View style={styles.optionalButtons}>
+              <TouchableOpacity
+                style={styles.optionalButton}
+                onPress={() => setShowNotes(!showNotes)}
+              >
+                <Ionicons name="add" size={12} color="#333" />
+                <Text style={styles.optionalButtonText}>추가 설명</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.optionalButton}
+                onPress={() => setShowParticipants(!showParticipants)}
+              >
+                <Ionicons name="add" size={12} color="#333" />
+                <Text style={styles.optionalButtonText}>함께한 사람</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.optionalButton}
+                onPress={() => setShowLocation(!showLocation)}
+              >
+                <Ionicons name="add" size={12} color="#333" />
+                <Text style={styles.optionalButtonText}>장소</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Optional Fields */}
           {showNotes && (
             <View style={styles.inputRow}>
-              <Ionicons name="document-text-outline" size={20} color="#666" />
+              <Ionicons name="document-text-outline" size={24} color="#666" />
               <TextInput
                 style={styles.textInput}
                 value={notes}
@@ -260,7 +249,7 @@ export default function MealRecordScreen({
 
           {showParticipants && (
             <View style={styles.inputRow}>
-              <Ionicons name="people-outline" size={20} color="#666" />
+              <Ionicons name="people-outline" size={24} color="#666" />
               <TextInput
                 style={styles.textInput}
                 value={participants.join(', ')}
@@ -275,7 +264,7 @@ export default function MealRecordScreen({
 
           {showLocation && (
             <View style={styles.inputRow}>
-              <Ionicons name="location-outline" size={20} color="#666" />
+              <Ionicons name="location-outline" size={24} color="#666" />
               <TextInput
                 style={styles.textInput}
                 value={location}
@@ -334,26 +323,133 @@ const styles = StyleSheet.create({
     color: '#88DC00',
   },
   content: {
-    flex: 1,
-    paddingHorizontal: 16,
+    padding: 16, // Figma: p-[16px]
+    gap: 32, // Figma: gap-[32px]
+    paddingBottom: 40, // Extra bottom padding for scroll
   },
   imageContainer: {
-    marginTop: 16,
-    marginBottom: 20,
+    // Removed margins, handled by gap
   },
   foodImage: {
     width: '100%',
-    height: 320,
+    height: 320, // Figma: h-[320px]
     borderRadius: 8,
     backgroundColor: '#F2F2F7',
   },
+  // 식단 기록 section
+  sectionContainer: {
+    gap: 12, // Figma: gap-[12px]
+  },
+  sectionTitle: {
+    fontSize: 16, // Figma: text-[16px]
+    fontWeight: '600', // Figma: SemiBold
+    lineHeight: 20, // Figma: leading-[20px]
+    color: '#000',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 48, // Figma: h-[48px]
+    gap: 8, // Figma: gap-[8px]
+    paddingRight: 16, // Figma: pr-[16px]
+    paddingVertical: 14, // Figma: py-[14px]
+    borderBottomWidth: 1,
+    borderBottomColor: '#D1D1D6', // Figma: grays/gray-4
+    backgroundColor: '#fff',
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 16, // Figma: text-[16px]
+    fontWeight: '500', // Figma: Medium
+    lineHeight: 20, // Figma: leading-[20px]
+    color: '#000',
+  },
+  inputSuffix: {
+    fontSize: 16, // Figma: text-[16px]
+    fontWeight: '500', // Figma: Medium
+    lineHeight: 20, // Figma: leading-[20px]
+    color: '#000',
+    textAlign: 'right',
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4, // Figma: gap-[4px]
+    paddingHorizontal: 8, // Figma: px-[8px]
+    paddingVertical: 6, // Figma: py-[6px]
+    backgroundColor: '#F2F2F7', // Figma: grays/gray-6
+    borderRadius: 4, // Figma: rounded-[4px]
+    alignSelf: 'flex-start',
+  },
+  addButtonText: {
+    fontSize: 12, // Figma: text-[12px]
+    fontWeight: '500', // Figma: Medium
+    lineHeight: 16, // Figma: leading-[16px]
+    color: '#333', // Figma: labels-vibrant/primary
+  },
+  // Date/Time row
+  dateTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 48, // Figma: h-[48px]
+    gap: 8, // Figma: gap-[8px]
+    paddingRight: 20, // Figma: pr-[20px]
+    paddingVertical: 14, // Figma: py-[14px]
+    borderBottomWidth: 1,
+    borderBottomColor: '#D1D1D6', // Figma: grays/gray-4
+    backgroundColor: '#fff',
+  },
+  dateText: {
+    fontSize: 16, // Figma: text-[16px]
+    fontWeight: '500', // Figma: Medium
+    lineHeight: 20, // Figma: leading-[20px]
+    color: '#000',
+  },
+  timeText: {
+    flex: 1,
+    fontSize: 16, // Figma: text-[16px]
+    fontWeight: '500', // Figma: Medium
+    lineHeight: 20, // Figma: leading-[20px]
+    color: '#000',
+    textAlign: 'right',
+  },
+  // Divider
+  divider: {
+    height: 1,
+    backgroundColor: '#D9D9D9',
+  },
+  // Optional buttons section
+  optionalSection: {
+    gap: 16, // Figma: gap-[16px]
+  },
+  optionalButtons: {
+    flexDirection: 'row',
+    gap: 8, // Figma: gap-[8px]
+  },
+  optionalButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4, // Figma: gap-[4px]
+    paddingHorizontal: 8, // Figma: px-[8px]
+    paddingVertical: 6, // Figma: py-[6px]
+    backgroundColor: '#F2F2F7', // Figma: grays/gray-6
+    borderRadius: 4, // Figma: rounded-[4px]
+  },
+  optionalButtonText: {
+    fontSize: 12, // Figma: text-[12px]
+    fontWeight: '500', // Figma: Medium
+    lineHeight: 16, // Figma: leading-[16px]
+    color: '#333', // Figma: labels-vibrant/primary
+  },
+  // Legacy styles kept for compatibility
   dateTimeCard: {
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#C7C7CC',
     borderRadius: 4,
     padding: 16,
-    marginBottom: 12,
     gap: 12,
   },
   dateTimeHeader: {
@@ -372,59 +468,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 4,
   },
-  dateText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#000',
-  },
-  timeText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#000',
-  },
   dividerThin: {
     height: 1,
     backgroundColor: '#D9D9D9',
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    paddingRight: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#D1D1D6',
-    marginBottom: 12,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#000',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#D9D9D9',
-    marginVertical: 20,
-  },
-  optionalButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  optionalButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: '#D1D1D6',
-    borderRadius: 4,
-  },
-  optionalButtonText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#404040',
   },
   savingOverlay: {
     position: 'absolute',

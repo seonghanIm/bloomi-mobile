@@ -9,17 +9,20 @@ import {
 } from 'react-native';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
+const BOTTOM_SHEET_HEIGHT = SCREEN_HEIGHT * 0.92; // 화면의 92%
 
 interface AnimatedBottomSheetProps {
   visible: boolean;
   onClose: () => void;
   children: React.ReactNode;
+  height?: number; // 커스텀 높이 (선택)
 }
 
 export default function AnimatedBottomSheet({
   visible,
   onClose,
   children,
+  height = BOTTOM_SHEET_HEIGHT,
 }: AnimatedBottomSheetProps) {
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -75,7 +78,10 @@ export default function AnimatedBottomSheet({
         <Animated.View
           style={[
             styles.contentWrapper,
-            { transform: [{ translateY: slideAnim }] },
+            {
+              height,
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
           {children}
@@ -98,6 +104,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentWrapper: {
-    // Content will define its own styles
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+    overflow: 'hidden',
   },
 });

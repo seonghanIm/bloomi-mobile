@@ -14,9 +14,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../contexts/AuthContext';
-import { getTodayMeals, analyzeMeal, getMonthlyStatistics } from '../services/mealService';
-import { MealRecord, AnalyzeMealResponse } from '../types/meal';
+import { getMealsByDate, analyzeMeal, getMonthlyStatistics } from '../services/mealService';
+import { formatLocalDate } from '../utils/dateUtils';
+import { MealRecord, AnalyzeMealResponse, MealEmotion } from '../types/meal';
 import { getCurrentYearMonth } from '../utils/dateUtils';
+import config from '../constants/config';
 import InlineCalendar from '../components/InlineCalendar';
 import MealCardNew from '../components/MealCardNew';
 import SideDrawer from '../components/SideDrawer';
@@ -43,7 +45,7 @@ export default function HomeScreen() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [monthlyStats, setMonthlyStats] = useState<Record<string, { dots: number }>>({});
+  const [monthlyStats, setMonthlyStats] = useState<Record<string, { dots: number; emotion?: MealEmotion }>>({});
   const [showMenu, setShowMenu] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const appState = useRef(AppState.currentState);
@@ -55,12 +57,12 @@ export default function HomeScreen() {
   const [analysisResult, setAnalysisResult] = useState<AnalyzeMealResponse | null>(null);
   const [savedMeal, setSavedMeal] = useState<MealRecord | null>(null);
 
-  // 초기 로드
+  // 초기 로드 (월간 통계만 - 식단은 selectedDate useEffect에서 로드)
   useEffect(() => {
     const loadInitialData = async () => {
       console.log('HomeScreen: Initial data load started');
       try {
-        await Promise.all([loadTodayMeals(), loadMonthlyStats()]);
+        await loadMonthlyStats();
         console.log('HomeScreen: Initial data load completed');
       } catch (error) {
         console.error('HomeScreen: Initial data load failed:', error);
@@ -78,7 +80,7 @@ export default function HomeScreen() {
         appState.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
-        loadTodayMeals();
+        loadMealsByDate(selectedDate);
         loadMonthlyStats();
       }
       appState.current = nextAppState;
@@ -87,16 +89,19 @@ export default function HomeScreen() {
     return () => {
       subscription.remove();
     };
-  }, []);
+  }, [selectedDate]);
 
   const loadMonthlyStats = async () => {
     try {
       const yearMonth = getCurrentYearMonth();
       const stats = await getMonthlyStatistics(yearMonth);
-      // 형식 변환: { "2025-01-15": 3 } -> { "2025-01-15": { dots: 3 } }
-      const formattedStats: Record<string, { dots: number }> = {};
-      Object.entries(stats).forEach(([date, count]) => {
-        formattedStats[date] = { dots: count as number };
+      // 형식 변환: { dailyCounts, dailyEmotions } -> { "2025-01-15": { dots: 3, emotion: "OKAY" } }
+      const formattedStats: Record<string, { dots: number; emotion?: MealEmotion }> = {};
+      Object.entries(stats.dailyCounts).forEach(([date, count]) => {
+        formattedStats[date] = {
+          dots: count as number,
+          emotion: stats.dailyEmotions[date] as MealEmotion | undefined,
+        };
       });
       setMonthlyStats(formattedStats);
     } catch (error) {
@@ -104,28 +109,35 @@ export default function HomeScreen() {
     }
   };
 
-  const loadTodayMeals = async () => {
+  const loadMealsByDate = async (date: Date) => {
     try {
-      const todayMeals = await getTodayMeals();
-      setMeals(todayMeals);
+      const dateStr = formatLocalDate(date);
+      console.log('📡 Loading meals for date:', dateStr);
+      const dateMeals = await getMealsByDate(dateStr);
+      setMeals(dateMeals);
     } catch (error) {
-      console.error('Failed to load today meals:', error);
+      console.error('Failed to load meals:', error);
       setMeals([]);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // 선택된 날짜가 변경되면 해당 날짜의 식단 로드
+  useEffect(() => {
+    loadMealsByDate(selectedDate);
+  }, [selectedDate]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([loadTodayMeals(), loadMonthlyStats()]);
+      await Promise.all([loadMealsByDate(selectedDate), loadMonthlyStats()]);
     } catch (error) {
       console.error('Failed to refresh data:', error);
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [selectedDate]);
 
   const handleAddMeal = () => {
     setShowImagePicker(true);
@@ -144,6 +156,7 @@ export default function HomeScreen() {
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
+        base64: true,
       });
 
       if (!result.canceled && result.assets[0]) {
@@ -170,6 +183,7 @@ export default function HomeScreen() {
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
+        base64: true,
       });
 
       if (!result.canceled && result.assets[0]) {
@@ -191,19 +205,36 @@ export default function HomeScreen() {
       const match = /\.(\w+)$/.exec(filename);
       const type = match ? `image/${match[1]}` : 'image/jpeg';
 
+      console.log('🔍 Analyzing image:', { uri, type, filename });
+
       const result = await analyzeMeal({
         image: { uri, type, name: filename },
       });
+
+      console.log('✅ Analysis result:', result);
 
       // Store analysis result and show MealRecordScreen
       setAnalysisResult(result);
       setShowRecordScreen(true);
     } catch (error: any) {
-      console.error('Analysis error:', error);
-      Alert.alert(
-        '분석 실패',
-        error.response?.data?.message || '식단 분석 중 오류가 발생했습니다.'
-      );
+      console.error('❌ Analysis error:', error);
+
+      const status = error.response?.status;
+      const errorCode = error.response?.data?.code;
+
+      // 일일 요청 제한 초과 (429)
+      if (status === 429 || errorCode === 'DAILY_LIMIT_EXCEEDED') {
+        Alert.alert(
+          '일일 사용 제한',
+          'Bloomi는 일 3회의 무료 식단 분석을 제공합니다.\n내일 다시 이용해주세요! 🙏',
+          [{ text: '확인', style: 'default' }]
+        );
+        return;
+      }
+
+      // 기타 에러
+      const errorMsg = error.response?.data?.message || error.message || '알 수 없는 오류';
+      Alert.alert('분석 실패', errorMsg);
     } finally {
       setIsAnalyzing(false);
     }
@@ -230,7 +261,7 @@ export default function HomeScreen() {
     setSelectedImageUri(null);
     setAnalysisResult(null);
     // Refresh meals list
-    loadTodayMeals();
+    loadMealsByDate(selectedDate);
     loadMonthlyStats();
   };
 
@@ -308,9 +339,8 @@ export default function HomeScreen() {
         {/* 구분선 */}
         <View style={styles.divider} />
 
-        {/* 오늘 식단 섹션 */}
+        {/* 식단 섹션 */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>오늘 식단</Text>
 
           {/* 영양 요약 카드 */}
           <View style={styles.nutritionCard}>
@@ -418,21 +448,17 @@ export default function HomeScreen() {
       </Modal>
 
       {/* MealResultScreen Modal */}
-      <Modal
+      <AnimatedBottomSheet
         visible={showResultScreen}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={handleResultClose}
+        onClose={handleResultClose}
       >
-        <View style={styles.resultModalOverlay}>
-          {savedMeal && (
-            <MealResultScreen
-              meal={savedMeal}
-              onClose={handleResultClose}
-            />
-          )}
-        </View>
-      </Modal>
+        {savedMeal && (
+          <MealResultScreen
+            meal={savedMeal}
+            onClose={handleResultClose}
+          />
+        )}
+      </AnimatedBottomSheet>
     </View>
   );
 }
@@ -588,10 +614,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#333',
-  },
-  resultModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
   },
 });
