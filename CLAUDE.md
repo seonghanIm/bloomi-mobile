@@ -492,4 +492,116 @@ import MealCard from '../components/MealCard';
 
 ---
 
+## 11. Figma 디자인 구현 규칙 (Pixel-Perfect)
+
+### 11.1 핵심 원칙
+
+**피그마 디자인을 코드로 구현할 때는 반드시 픽셀 단위까지 정확하게 일치시켜야 합니다.**
+
+- px 값, 간격, 폰트 크기, 색상 모두 피그마와 100% 동일하게
+- "대충 비슷하게"가 아닌 "완벽하게 똑같이"
+- 의심스러울 때는 `get_design_context` 도구로 정확한 값 확인
+
+### 11.2 구현 프로세스
+
+1. **피그마에서 디자인 컨텍스트 가져오기**
+   ```
+   mcp__figma__get_design_context 도구 사용
+   ```
+
+2. **스타일 값 정확히 추출**
+   - padding, margin, gap 값
+   - font-size, line-height, font-weight
+   - border-radius
+   - 색상 코드 (hex 그대로 사용)
+
+3. **React Native StyleSheet로 변환**
+   - Tailwind → StyleSheet 변환 시 값 유지
+   - `gap-[32px]` → `gap: 32`
+   - `p-[16px]` → `padding: 16`
+   - `text-[16px]` → `fontSize: 16`
+   - `leading-[20px]` → `lineHeight: 20`
+
+### 11.3 색상 매핑
+
+피그마 CSS 변수를 실제 색상 코드로 변환:
+
+```typescript
+const FigmaColors = {
+  // Grays
+  'grays/black': '#000000',
+  'grays/white': '#FFFFFF',
+  'grays/gray-4': '#D1D1D6',
+  'grays/gray-5': '#E5E5EA',
+  'grays/gray-6': '#F2F2F7',
+
+  // Brand
+  'purple-40': '#6E2FF4',
+  'purple-light': '#E0D6EF',
+  'green-primary': '#88DC00',
+  'green-secondary': '#B3DC14',
+
+  // Labels
+  'labels-vibrant/primary': '#333333',
+};
+```
+
+### 11.4 폰트 매핑
+
+```typescript
+const FigmaFonts = {
+  'Pretendard:Regular': { fontWeight: '400' },
+  'Pretendard:Medium': { fontWeight: '500' },
+  'Pretendard:SemiBold': { fontWeight: '600' },
+  'Pretendard:Bold': { fontWeight: '700' },
+};
+```
+
+### 11.5 체크리스트
+
+피그마 → 코드 변환 시 확인사항:
+
+- [ ] padding 값 정확히 일치
+- [ ] margin/gap 값 정확히 일치
+- [ ] fontSize 정확히 일치
+- [ ] lineHeight 정확히 일치
+- [ ] fontWeight 정확히 일치
+- [ ] 색상 코드 정확히 일치
+- [ ] borderRadius 정확히 일치
+- [ ] 컴포넌트 크기(width/height) 일치
+
+### 11.6 예시: Tailwind → React Native 변환
+
+**피그마 출력 (Tailwind)**:
+```jsx
+<div className="flex flex-col gap-[32px] p-[16px]">
+  <p className="font-['Pretendard:SemiBold'] text-[16px] leading-[20px]">
+    식단 기록
+  </p>
+</div>
+```
+
+**React Native 변환**:
+```tsx
+<View style={styles.container}>
+  <Text style={styles.title}>식단 기록</Text>
+</View>
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'column',
+    gap: 32,          // gap-[32px]
+    padding: 16,      // p-[16px]
+  },
+  title: {
+    fontWeight: '600',   // SemiBold
+    fontSize: 16,        // text-[16px]
+    lineHeight: 20,      // leading-[20px]
+    color: '#000000',
+  },
+});
+```
+
+---
+
 **마지막 업데이트**: 2025-11-03
